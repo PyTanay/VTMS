@@ -1,0 +1,478 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  RECOMMENDING_EMPLOYEE
+  TRAINING_CENTER_SECTION_HEAD
+  TRAINING_IN_CHARGE
+  ED_GM_APPROVER
+  APPLICANT
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  RECEIVED_BY_TC
+  SCRUTINIZED
+  ASSIGNED_TO_INCHARGE
+  PERMISSION_LETTER_SENT
+  JOINING_PENDING
+  DOCUMENTS_VERIFIED
+  BIODATA_COMPLETED
+  GATE_PASS_CREATED
+  POSTED
+  TRAINING_ACTIVE
+  NO_DUES_PENDING
+  REPORT_SUBMITTED
+  CERTIFICATE_READY
+  CERTIFICATE_ISSUED
+  TRAINING_COMPLETED
+  CLOSED
+}
+
+enum ApplicantType {
+  EMPLOYEE_WARD
+  OTHER_REFERENCE
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  email        String   @unique
+  password     String
+  role         Role     @default(APPLICANT)
+  employeeId   Int?     @unique
+  employee     Employee? @relation(fields: [employeeId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  auditLogs    AuditLog[]
+  verifications DocumentVerification[] @relation("VerifiedBy")
+  clearances   NoDueClearanceLine[] @relation("ClearedBy")
+
+  @@map("users")
+}
+
+model Employee {
+  id              Int      @id @default(autoincrement())
+  employee_no     String   @unique
+  name            String
+  department      String
+  email           String
+  designation     String
+  active          Boolean  @default(true)
+  user            User?
+  applications    Application[] @relation("RecommendingEmployee")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("employees")
+}
+
+model College {
+  id           Int      @id @default(autoincrement())
+  college_name String
+  place        String
+  applications Application[]
+
+  @@map("colleges")
+}
+
+model Department {
+  id              Int      @id @default(autoincrement())
+  department_name String   @unique
+  applications    Application[] @relation("PostingDepartment")
+  createdAt       DateTime @default(now())
+
+  @@map("departments")
+}
+
+model Category {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  applications Application[]
+
+  @@map("categories")
+}
+
+model State {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  districts District[]
+
+  @@map("states")
+}
+
+model District {
+  id        Int      @id @default(autoincrement())
+  name      String
+  stateId   Int
+  state     State    @relation(fields: [stateId], references: [id])
+  talukas   Taluka[]
+
+  @@map("districts")
+}
+
+model Taluka {
+  id         Int      @id @default(autoincrement())
+  name       String
+  districtId Int
+  district   District @relation(fields: [districtId], references: [id])
+  cities     City[]
+
+  @@map("talukas")
+}
+
+model City {
+  id       Int     @id @default(autoincrement())
+  name     String
+  talukaId Int?
+  taluka   Taluka? @relation(fields: [talukaId], references: [id])
+
+  @@map("cities")
+}
+
+model Branch {
+  id           Int      @id @default(autoincrement())
+  branch_name  String   @unique
+  applications Application[]
+
+  @@map("branches")
+}
+
+model FinancialYear {
+  id          Int     @id @default(autoincrement())
+  year_string String  @unique // e.g., "2026-27"
+  active      Boolean @default(false)
+
+  @@map("financial_years")
+}
+
+model Application {
+  id                       Int               @id @default(autoincrement())
+  application_no           String            @unique
+  applicant_type           ApplicantType
+  application_date         DateTime          @default(now())
+  status                   ApplicationStatus @default(DRAFT)
+  
+  // Student Personal Details
+  student_surname          String
+  student_name             String
+  student_father_name      String
+  son_daughter             Boolean           @default(false)
+  relation                 String?
+  student_email            String
+  student_mobile           String
+  
+  // Compulsory Checkboxes
+  presently_pursuing       Boolean           @default(true)
+  training_compulsory      Boolean           @default(true)
+  part_of_curriculum       Boolean           @default(true)
+  full_time_course         Boolean           @default(true)
+  past_training            Boolean           @default(false)
+
+  // Education Details
+  categoryId               Int
+  category                 Category          @relation(fields: [categoryId], references: [id])
+  branchId                 Int
+  branch                   Branch            @relation(fields: [branchId], references: [id])
+  year_of_study            Int
+  semester                 Int
+
+  // College Details
+  collegeId                Int
+  college                  College           @relation(fields: [collegeId], references: [id])
+  college_pincode          String?
+  college_website          String?
+  college_hod_name         String?
+  college_hod_email        String?
+  college_letter_ref       String?
+  college_letter_date      DateTime?
+
+  // Training Details
+  requested_from           DateTime
+  requested_to             DateTime
+  approved_from            DateTime?
+  approved_to              DateTime?
+
+  // Recommendations & Approvals
+  recommending_employee_id Int?
+  recommending_employee    Employee?         @relation("RecommendingEmployee", fields: [recommending_employee_id], references: [id])
+  reference_details        String?           // For other-reference type (Retired, VVIP, etc.)
+
+  // Scrutiny Details
+  scrutiny_in_charge_id    Int?
+  scrutiny_date            DateTime?
+  scrutiny_remarks         String?
+
+  // Permission Details
+  permission_letter_ref    String?
+  permission_letter_date   DateTime?
+  posting_department_id    Int?
+  posting_department       Department?       @relation("PostingDepartment", fields: [posting_department_id], references: [id])
+
+  // Joining details
+  joining_date             DateTime?
+  gate_pass_no             String?
+  gate_pass_valid_up_to    DateTime?
+
+  // Evaluation details
+  behavioral_rating        String?
+  progress_rating          String?
+  actual_completion_date   DateTime?
+  report_submission_date   DateTime?
+  certificate_ref          String?
+  certificate_issue_date   DateTime?
+  no_due_ref               String?
+
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+
+  // Relations
+  verifications            DocumentVerification[]
+  biodata                  BiodataForm?
+  postingLetterStudents    PostingLetterStudent[]
+  certificates             Certificate[]
+  noDueForm                NoDueForm?
+
+  @@map("applications")
+}
+
+model DocumentVerification {
+  id             Int         @id @default(autoincrement())
+  applicationId  Int
+  application    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  doc_type       String      // e.g., "Annexure 1", "Accident Policy"
+  file_path      String
+  verified       Boolean     @default(false)
+  verified_by_id Int?
+  verified_by    User?       @relation("VerifiedBy", fields: [verified_by_id], references: [id])
+  verified_at    DateTime?
+  remarks        String?
+
+  @@map("document_verifications")
+}
+
+model BiodataForm {
+  id                       Int                    @id @default(autoincrement())
+  applicationId            Int                    @unique
+  application              Application            @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  local_address            String
+  permanent_address        String
+  caste                    String?
+  height_cm                Float?
+  weight_kg                Float?
+  blood_group              String?
+  physically_challenged    Boolean                @default(false)
+  challenge_details        String?
+  photo_path               String?
+  student_declaration      Boolean                @default(true)
+  student_signature_path   String?
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+
+  academics                BiodataAcademic[]
+  otherTrainings           BiodataOtherTraining[]
+  sports                   BiodataSport[]
+  extracurriculars         BiodataExtracurricular[]
+  familyMembers            BiodataFamilyMember[]
+  gnfcRelatives            BiodataGnfcRelative[]
+  postings                 BiodataPosting[]
+
+  @@map("biodata_forms")
+}
+
+model BiodataAcademic {
+  id                Int         @id @default(autoincrement())
+  biodataId         Int
+  biodata           BiodataForm @relation(fields: [biodataId], references: [id], onDelete: Cascade)
+  course_name       String      // SSCE, HSCE, Diploma, etc.
+  board_university  String
+  passing_year      Int
+  percentage_cgpa   Float
+
+  @@map("biodata_academics")
+}
+
+model BiodataOtherTraining {
+  id              Int         @id @default(autoincrement())
+  biodataId       Int
+  biodata         BiodataForm @relation(fields: [biodataId], references: [id], onDelete: Cascade)
+  institute_name  String
+  course_name     String
+  training_period String
+  remarks         String?
+
+  @@map("biodata_other_trainings")
+}
+
+model BiodataSport {
+  id                     Int         @id @default(autoincrement())
+  biodataId              Int
+  biodata                BiodataForm @relation(fields: [biodataId], references: [id], onDelete: Cascade)
+  game_name              String
+  level_of_participation String
+  achievements           String?
+
+  @@map("biodata_sports")
+}
+
+model BiodataExtracurricular {
+  id            Int         @id @default(autoincrement())
+  biodataId     Int
+  biodata       BiodataForm @relation(fields: [biodataId], references: [id], onDelete: Cascade)
+  activity_name String
+  achievements  String?
+
+  @@map("biodata_extracurriculars")
+}
+
+model BiodataFamilyMember {
+  id           Int         @id @default(autoincrement())
+  biodataId    Int
+  biodata      BiodataForm @relation(fields: [biodataId], references: [id], onDelete: Cascade)
+  member_name  String
+  relationship String
+  age          Int
+  occupation   String?
+  contact_no   String?
+
+  @@map("biodata_family_members")
+}
+
+model BiodataGnfcRelative {
+  id           Int         @id @default(autoincrement())
+  biodataId    Int
+  biodata      BiodataForm @relation(fields: [biodataId], references: [id], onDelete: Cascade)
+  relative_name String
+  relationship String
+  department   String
+  employee_no  String
+
+  @@map("biodata_gnfc_relatives")
+}
+
+model BiodataPosting {
+  id            Int         @id @default(autoincrement())
+  biodataId     Int
+  biodata       BiodataForm @relation(fields: [biodataId], references: [id], onDelete: Cascade)
+  department    String
+  in_charge     String
+  posting_from  DateTime
+  posting_to    DateTime
+  remarks       String?
+
+  @@map("biodata_postings")
+}
+
+model PostingLetter {
+  id                     Int                    @id @default(autoincrement())
+  ref_no                 String                 @unique
+  date                   DateTime               @default(now())
+  qualification_branch   String
+  college_short_name     String
+  college_place          String
+  posting_department     String
+  to_report_to           String
+  reporting_officer_email String
+  selected_weekdays      String                 // comma separated days, e.g., "Monday,Tuesday"
+  training_in_charge     String
+  department_head        String
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  students               PostingLetterStudent[]
+
+  @@map("posting_letters")
+}
+
+model PostingLetterStudent {
+  id              Int           @id @default(autoincrement())
+  postingLetterId Int
+  postingLetter   PostingLetter @relation(fields: [postingLetterId], references: [id], onDelete: Cascade)
+  applicationId   Int
+  application     Application   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  approved_days   String?
+
+  @@map("posting_letter_students")
+}
+
+model Certificate {
+  id                     Int         @id @default(autoincrement())
+  certificate_ref        String      @unique
+  applicationId          Int
+  application            Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  behavioral_rating      String      // Excellent, Good, Satisfactory
+  progress_rating        String      // Excellent, Good, Satisfactory
+  actual_completion_date DateTime
+  report_submission_date DateTime
+  special_issue_remarks  String?
+  is_duplicate           Boolean     @default(false)
+  duplicate_approved_by  String?
+  duplicate_reason       String?
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+
+  @@map("certificates")
+}
+
+model NoDueForm {
+  id            Int                  @id @default(autoincrement())
+  no_due_ref    String               @unique
+  applicationId Int                  @unique
+  application   Application          @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  status        String               @default("PENDING") // PENDING, CLEARED
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  lines         NoDueClearanceLine[]
+
+  @@map("no_due_forms")
+}
+
+model NoDueClearanceLine {
+  id             Int       @id @default(autoincrement())
+  noDueId        Int
+  noDueForm      NoDueForm @relation(fields: [noDueId], references: [id], onDelete: Cascade)
+  item_name      String    // e.g., "Reference material", "Safety items / helmets"
+  cleared        Boolean   @default(false)
+  cleared_by_id  Int?
+  cleared_by     User?     @relation("ClearedBy", fields: [cleared_by_id], references: [id])
+  cleared_at     DateTime?
+  remarks        String?
+
+  @@map("no_due_clearance_lines")
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int?
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String   // CREATE, UPDATE, DELETE, STATUS_CHANGE
+  entity_name String
+  entity_id   Int
+  old_value   String?  // JSON string
+  new_value   String?  // JSON string
+  timestamp   DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model EmailLog {
+  id            Int      @id @default(autoincrement())
+  to_email      String
+  subject       String
+  body          String
+  sent_status   Boolean  @default(false)
+  sent_at       DateTime @default(now())
+  error_message String?
+
+  @@map("email_logs")
+}
