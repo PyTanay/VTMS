@@ -9,6 +9,7 @@ export interface AuthUserPayload {
 
 export interface AuthRequest extends Request {
   user?: AuthUserPayload;
+  logAudit?: (action: string, entity: string, entityId: number, oldValue?: any, newValue?: any) => Promise<void> | void;
 }
 
 export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {

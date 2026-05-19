@@ -1,0 +1,109 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 24px auto;
+        background: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background: linear-gradient(135deg, #1a73e8, #0d47a1);
+        padding: 24px;
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0;
+        color: #ffffff;
+        font-size: 20px;
+      }
+      .body {
+        padding: 24px;
+        color: #333;
+        line-height: 1.6;
+      }
+      .badge {
+        display: inline-block;
+        background: #e3f2fd;
+        color: #0d47a1;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .footer {
+        padding: 16px 24px;
+        background: #f9f9f9;
+        font-size: 12px;
+        color: #888;
+        text-align: center;
+      }
+      a.button {
+        display: inline-block;
+        padding: 10px 20px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        margin: 4px;
+      }
+      a.approve {
+        background: #4caf50;
+        color: #fff;
+      }
+      a.reject {
+        background: #f44336;
+        color: #fff;
+      }
+      table.details {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0;
+      }
+      table.details td {
+        padding: 8px;
+        border-bottom: 1px solid #eee;
+      }
+      table.details td:first-child {
+        color: #888;
+        width: 40%;
+      }
+      table.details td:last-child {
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Action Required: Training Approval</h1>
+      </div>
+      <div class="body">
+        <p>Dear <strong>{{approverName}}</strong>,</p>
+        <p>A vocational training application requires your review and approval.</p>
+        <table class="details">
+          <tr><td>Student Name</td><td>{{studentName}}</td></tr>
+          <tr><td>Application No</td><td>{{applicationNo}}</td></tr>
+          <tr><td>College</td><td>{{collegeName}}</td></tr>
+          <tr><td>Submitted On</td><td>{{submittedOn}}</td></tr>
+        </table>
+        <p style="text-align: center; margin-top: 20px;">
+          <a href="{{approveLink}}" class="button approve">Approve</a>
+          <a href="{{rejectLink}}" class="button reject">Reject</a>
+        </p>
+      </div>
+      <div class="footer">
+        &copy; 2026 GNFC Ltd — Vocational Training Management System
+      </div>
+    </div>
+  </body>
+</html>

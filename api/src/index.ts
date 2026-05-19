@@ -17,8 +17,13 @@ import { reportRouter } from "./routes/report.routes";
 import { employeeRouter } from "./routes/employee.routes";
 import { userRouter } from "./routes/user.routes";
 import { samvadRouter } from "./routes/samvad.routes";
+import { uploadRouter } from "./routes/upload.routes";
+import { auditLogRouter } from "./routes/auditLog.routes";
 import { errorHandler } from "./middleware/errorHandler";
+import auditLoggingMiddleware from "./middleware/auditLog";
 import { scheduleSamvadSync } from "./jobs/samvadSync";
+import { scheduleCleanup } from "./jobs/cleanupUploads";
+import { startQueue } from "./jobs/queue";
 
 dotenv.config();
 
@@ -36,7 +41,18 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use("/uploads", express.static("uploads"));
+app.use(auditLoggingMiddleware);
+app.use(
+  "/uploads",
+  express.static("uploads", {
+    setHeaders: (res, path) => {
+      if (path.endsWith(".pdf")) {
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", "inline");
+      }
+    },
+  }),
+);
 
 // Routes
 app.use("/api/auth", authRouter);
@@ -54,6 +70,8 @@ app.use("/api/reports", reportRouter);
 app.use("/api/employees", employeeRouter);
 app.use("/api/users", userRouter);
 app.use("/api/samvad", samvadRouter);
+app.use("/api/uploads", uploadRouter);
+app.use("/api/audit-logs", auditLogRouter);
 
 // Health check
 app.get("/api/health", (_req, res) => res.json({ status: "ok", timestamp: new Date().toISOString() }));
@@ -62,9 +80,14 @@ app.get("/api/health", (_req, res) => res.json({ status: "ok", timestamp: new Da
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`⚡ VTMS API running on http://localhost:${PORT}`);
-  scheduleSamvadSync(); // start nightly SAMVAD sync cron
-});
+
+if (process.env.NODE_ENV !== "test") {
+  app.listen(PORT, () => {
+    console.log(`⚡ VTMS API running on http://localhost:${PORT}`);
+    scheduleSamvadSync(); // start nightly SAMVAD sync cron
+    scheduleCleanup();
+    startQueue();
+  });
+}
 
 export default app;

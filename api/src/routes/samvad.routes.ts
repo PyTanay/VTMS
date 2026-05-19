@@ -1,7 +1,11 @@
 import { Router } from "express";
-import * as samvadController from "../controllers/samvad.controller";
 import { authenticate, authorize } from "../middleware/auth";
+import { syncSamvad, getSyncLogs, toggleNightlySync } from "../controllers/samvad.controller";
 
 export const samvadRouter = Router();
+samvadRouter.use(authenticate);
+samvadRouter.use(authorize(["ADMIN", "TRAINING_CENTER_SECTION_HEAD"]));
 
-samvadRouter.post("/sync", authenticate, authorize(["ADMIN", "TRAINING_CENTER_SECTION_HEAD"]), samvadController.syncSamvad);
+samvadRouter.post("/sync", syncSamvad);
+samvadRouter.get("/logs", getSyncLogs);
+samvadRouter.post("/settings", toggleNightlySync);

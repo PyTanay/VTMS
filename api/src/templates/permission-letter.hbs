@@ -1,0 +1,93 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 24px auto;
+        background: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background: linear-gradient(135deg, #1a73e8, #0d47a1);
+        padding: 24px;
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0;
+        color: #ffffff;
+        font-size: 20px;
+      }
+      .body {
+        padding: 24px;
+        color: #333;
+        line-height: 1.6;
+      }
+      .footer {
+        padding: 16px 24px;
+        background: #f9f9f9;
+        font-size: 12px;
+        color: #888;
+        text-align: center;
+      }
+      a.button {
+        display: inline-block;
+        padding: 10px 20px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        margin: 4px;
+        background: #1a73e8;
+        color: #fff;
+      }
+      table.details {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0;
+      }
+      table.details td {
+        padding: 8px;
+        border-bottom: 1px solid #eee;
+      }
+      table.details td:first-child {
+        color: #888;
+        width: 40%;
+      }
+      table.details td:last-child {
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Permission Letter Issued</h1>
+      </div>
+      <div class="body">
+        <p>Dear <strong>{{studentName}}</strong>,</p>
+        <p>Your permission letter for vocational training at GNFC Ltd has been issued.</p>
+        <table class="details">
+          <tr><td>Application No</td><td>{{applicationNo}}</td></tr>
+          <tr><td>Permission Ref</td><td>{{permissionRef}}</td></tr>
+          <tr><td>Issued On</td><td>{{issuedOn}}</td></tr>
+          <tr><td>College</td><td>{{collegeName}}</td></tr>
+        </table>
+        <p style="text-align: center; margin-top: 20px;">
+          <a href="{{pdfUrl}}" class="button">Download Permission Letter</a>
+        </p>
+      </div>
+      <div class="footer">
+        &copy; 2026 GNFC Ltd — Vocational Training Management System
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,68 +1,238 @@
-import React, { useEffect, useState } from 'react';
-import api from '../api';
+import React, { useEffect, useState } from "react";
+import api from "../api";
+import { useNavigate } from "react-router-dom";
 
 interface DashboardStats {
   totalApplications: number;
   activeTrainees: number;
   totalDepartments: number;
+  pendingScrutiny: number;
+  pendingPermission: number;
+  pendingVerification: number;
+  pendingPosting: number;
+  pendingCertificate: number;
+  pendingNoDue: number;
+  totalEmployees: number;
+  totalUsers: number;
+  recentApplications: Array<{ id: number; application_no: string; student_name: string; status: string; createdAt: string }>;
 }
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats>({
     totalApplications: 0,
     activeTrainees: 0,
     totalDepartments: 0,
+    pendingScrutiny: 0,
+    pendingPermission: 0,
+    pendingVerification: 0,
+    pendingPosting: 0,
+    pendingCertificate: 0,
+    pendingNoDue: 0,
+    totalEmployees: 0,
+    totalUsers: 0,
+    recentApplications: [],
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await api.get('/applications/stats');
-        if (response.data.success) {
-          setStats(response.data.data);
-        } else {
-          setError('Failed to load stats');
-        }
-      } catch (err) {
-        setError('Error fetching stats');
-        console.error(err);
+        const [statsRes, employeesRes, usersRes, appsRes] = await Promise.all([
+          api.get("/applications/stats"),
+          api.get("/employees", { params: { perPage: 5000 } }),
+          api.get("/users"),
+          api.get("/applications"),
+        ]);
+
+        const allApps = appsRes.data.data || [];
+        const pendingScrutinyCount = allApps.filter(
+          (a: any) => a.status === "SUBMITTED" || a.status === "PENDING_APPROVAL" || a.status === "APPROVED",
+        ).length;
+        const pendingPermissionCount = allApps.filter(
+          (a: any) => a.status === "SCRUTINIZED" || a.status === "ASSIGNED_TO_INCHARGE",
+        ).length;
+        const pendingVerificationCount = allApps.filter(
+          (a: any) => a.status === "PERMISSION_LETTER_SENT" || a.status === "JOINING_PENDING",
+        ).length;
+        const pendingPostingCount = allApps.filter(
+          (a: any) => a.status === "GATE_PASS_CREATED" || a.status === "BIODATA_COMPLETED",
+        ).length;
+        const pendingCertCount = allApps.filter(
+          (a: any) => a.status === "TRAINING_COMPLETED" || a.status === "REPORT_SUBMITTED",
+        ).length;
+        const pendingNoDueCount = allApps.filter(
+          (a: any) => a.status === "CERTIFICATE_ISSUED" || a.status === "NO_DUES_PENDING",
+        ).length;
+
+        setStats({
+          ...statsRes.data.data,
+          totalEmployees: employeesRes.data.data?.length || 0,
+          totalUsers: usersRes.data.data?.length || 0,
+          pendingScrutiny: pendingScrutinyCount,
+          pendingPermission: pendingPermissionCount,
+          pendingVerification: pendingVerificationCount,
+          pendingPosting: pendingPostingCount,
+          pendingCertificate: pendingCertCount,
+          pendingNoDue: pendingNoDueCount,
+          recentApplications: allApps.slice(0, 5),
+        });
+      } catch {
+        setError("Error fetching dashboard data");
       } finally {
         setLoading(false);
       }
     };
-
     fetchStats();
   }, []);
 
+  if (error) {
+    return (
+      <div className="page-gap">
+        <div className="panel" style={{ padding: "16px 24px", borderLeft: "4px solid #dc2626", color: "#dc2626" }}>
+          {error}
+        </div>
+      </div>
+    );
+  }
+
+  const StatCard = ({
+    label,
+    value,
+    accent,
+    onClick,
+  }: {
+    label: string;
+    value: number | string;
+    accent: string;
+    onClick?: () => void;
+  }) => (
+    <div
+      className="stat-card"
+      style={{ borderLeft: `4px solid ${accent}`, cursor: onClick ? "pointer" : "default" }}
+      onClick={onClick}
+    >
+      <div className="stat-label">{label}</div>
+      <div className="stat-value" style={{ fontSize: value?.toString().length > 4 ? "24px" : "32px" }}>
+        {loading ? "..." : (value ?? 0)}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="glass-panel" style={{ padding: '24px' }}>
-      <h2>Welcome to VTMS Dashboard</h2>
-      <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>
-        Manage vocational training programs effectively.
-      </p>
-
-      {error && <p style={{ color: 'red', marginTop: '16px' }}>{error}</p>}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginTop: '32px' }}>
-        <div className="glass-panel" style={{ padding: '24px', background: 'rgba(99, 102, 241, 0.1)' }}>
-          <h3 style={{ color: 'var(--primary-accent)', marginBottom: '8px' }}>Total Applications</h3>
-          <p style={{ fontSize: '36px', fontWeight: 'bold' }}>
-            {loading ? '...' : stats.totalApplications}
-          </p>
+    <div className="page-gap">
+      <div className="panel">
+        <div className="panel-body">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: "20px" }}>Welcome to VTMS Dashboard</h2>
+              <p style={{ color: "var(--text-secondary)", marginTop: "6px", fontSize: "14px" }}>
+                Vocational Training Management System — Gujarat Narmada Valley Fertilizers & Chemicals Ltd.
+              </p>
+            </div>
+            <button className="btn btn-primary" onClick={() => navigate("/applications/new")}>
+              + New Application
+            </button>
+          </div>
         </div>
-        <div className="glass-panel" style={{ padding: '24px', background: 'rgba(236, 72, 153, 0.1)' }}>
-          <h3 style={{ color: 'var(--secondary-accent)', marginBottom: '8px' }}>Active Trainees</h3>
-          <p style={{ fontSize: '36px', fontWeight: 'bold' }}>
-            {loading ? '...' : stats.activeTrainees}
-          </p>
+      </div>
+
+      {/* Main Stats */}
+      <div className="stats-grid">
+        <StatCard
+          label="Total Applications"
+          value={stats.totalApplications}
+          accent="var(--primary-accent)"
+          onClick={() => navigate("/applications")}
+        />
+        <StatCard label="Active Trainees" value={stats.activeTrainees} accent="#ec4899" />
+        <StatCard label="Departments" value={stats.totalDepartments} accent="#10b981" />
+        <StatCard label="Employees" value={stats.totalEmployees} accent="#8b5cf6" />
+        <StatCard label="Registered Users" value={stats.totalUsers} accent="#f59e0b" onClick={() => navigate("/users")} />
+      </div>
+
+      {/* Pending Workflow Cards */}
+      <div className="panel">
+        <div className="panel-body">
+          <h3 style={{ margin: "0 0 16px", fontSize: "15px" }}>Pending Workflow Actions</h3>
+          <div className="stats-grid">
+            <StatCard
+              label="Pending Scrutiny"
+              value={stats.pendingScrutiny}
+              accent="#f59e0b"
+              onClick={() => navigate("/applications")}
+            />
+            <StatCard
+              label="Permission Letters"
+              value={stats.pendingPermission}
+              accent="#f97316"
+              onClick={() => navigate("/permission-letters")}
+            />
+            <StatCard
+              label="Doc Verification"
+              value={stats.pendingVerification}
+              accent="#3b82f6"
+              onClick={() => navigate("/document-verification")}
+            />
+            <StatCard
+              label="Pending Posting"
+              value={stats.pendingPosting}
+              accent="#8b5cf6"
+              onClick={() => navigate("/posting-planner")}
+            />
+            <StatCard
+              label="Certificates"
+              value={stats.pendingCertificate}
+              accent="#06b6d4"
+              onClick={() => navigate("/certificates")}
+            />
+            <StatCard label="No Due Clearance" value={stats.pendingNoDue} accent="#ef4444" onClick={() => navigate("/no-due")} />
+          </div>
         </div>
-        <div className="glass-panel" style={{ padding: '24px', background: 'rgba(16, 185, 129, 0.1)' }}>
-          <h3 style={{ color: '#10b981', marginBottom: '8px' }}>Departments</h3>
-          <p style={{ fontSize: '36px', fontWeight: 'bold' }}>
-            {loading ? '...' : stats.totalDepartments}
-          </p>
+      </div>
+
+      {/* Recent Applications */}
+      <div className="panel">
+        <div className="panel-body">
+          <div className="flex-between" style={{ marginBottom: "12px" }}>
+            <h3 style={{ margin: 0, fontSize: "15px" }}>Recent Applications</h3>
+            <button className="btn btn-outline btn-sm" onClick={() => navigate("/applications")}>
+              View All
+            </button>
+          </div>
+          {loading ? (
+            <p style={{ color: "var(--text-secondary)", fontSize: "14px" }}>Loading...</p>
+          ) : stats.recentApplications.length === 0 ? (
+            <p style={{ color: "var(--text-secondary)", fontSize: "14px" }}>No applications yet.</p>
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>App No</th>
+                    <th>Student</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.recentApplications.map((app) => (
+                    <tr key={app.id} onClick={() => navigate(`/applications/${app.id}`)} style={{ cursor: "pointer" }}>
+                      <td style={{ fontWeight: 500 }}>{app.application_no}</td>
+                      <td>{app.student_name}</td>
+                      <td>
+                        <span className="badge badge-default">{app.status}</span>
+                      </td>
+                      <td style={{ color: "var(--text-secondary)", fontSize: "13px" }}>
+                        {new Date(app.createdAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,71 +1,133 @@
-# VTMS - Vocational Training Management System
+# GNFC VTMS — Vocational Training Management System
 
-A comprehensive management system for handling employee vocational training applications, SAMVAD integration, and role-based workflow approvals.
+A full-stack web application for managing vocational training applications, approvals, scrutiny, document verification, biodata, gate passes, posting, certificates, and no-due clearance at **Gujarat Narmada Valley Fertilizers & Chemicals Ltd.**
 
-**Live Repository:** https://github.com/PyTanay/VTMS
-
----
-
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Technology Stack](#technology-stack)
-- [Prerequisites](#prerequisites)
-- [Project Structure](#project-structure)
-- [Installation](#installation)
-- [Environment Setup](#environment-setup)
-- [Running the Application](#running-the-application)
-- [Database Setup](#database-setup)
-- [Key Features](#key-features)
-- [API Documentation](#api-documentation)
-- [Contributing](#contributing)
+**Tech Stack:** React 19 + TypeScript + Vite (frontend) · Express 5 + TypeScript + Prisma/PostgreSQL (backend)
 
 ---
 
-## 🎯 Overview
+## ✨ Features at a Glance
 
-VTMS is a full-stack web application designed to:
-
-- Manage employee training applications with multi-stage approval workflows
-- Sync employee data from SAMVAD (internal system) to local database
-- Support role-based access control (Admin, Recommending Employee, Training Center Section Head, etc.)
-- Track application status through multiple stages (scrutiny, permission letters, biodata, certificates, etc.)
-- Generate and manage various training-related documents (gate passes, no-due clearances, reports)
-
----
-
-## 🛠️ Technology Stack
-
-### Backend
-
-- **Runtime:** Node.js (v24+)
-- **Language:** TypeScript
-- **Framework:** Express.js 5.x
-- **Database:** PostgreSQL
-- **ORM:** Prisma
-- **Authentication:** JWT + Cookies
-- **Task Scheduling:** node-cron
-- **HTML Parsing:** Cheerio (for SAMVAD sync)
-
-### Frontend
-
-- **Framework:** React 18+ with TypeScript
-- **Build Tool:** Vite
-- **HTTP Client:** Axios
-- **Routing:** React Router v7+
-- **Styling:** CSS (with theme.ts for theming)
+| Feature                   | Description                                                                   |
+| ------------------------- | ----------------------------------------------------------------------------- |
+| **Application Intake**    | Student/employee ward submits training application with documents             |
+| **Multi-Role Approval**   | ED/GM approves applications; Training Center scrutinizes                      |
+| **Permission Letters**    | Generate PDF permission letters with auto status transition                   |
+| **Document Verification** | Upload & verify documents; auto-skips to gate pass if no docs needed          |
+| **Biodata / Joining**     | Fill biodata form with academics, family, GNFC relatives                      |
+| **Gate Pass**             | Generate front+back gate pass PDF with instructions                           |
+| **Posting Planner**       | Group trainees by department, assign officers, generate posting letters       |
+| **Certificates**          | Issue training completion certificates with ratings                           |
+| **No Dues**               | Line-by-line clearance tracking with finalize workflow                        |
+| **12 Reports**            | Application register, branch-wise, college-wise, department posting, etc.     |
+| **SAMVAD Sync**           | Nightly employee sync from SAMVAD with conflict resolution                    |
+| **Audit Trail**           | Full history of all actions on every record                                   |
+| **Role-Based Access**     | ADMIN, ED_GM_APPROVER, TRAINING_CENTER_SECTION_HEAD, TRAINING_IN_CHARGE, etc. |
 
 ---
 
-## 📦 Prerequisites
+## 🚀 Quick Start (5 Steps)
 
-Before you begin, ensure you have:
+### Prerequisites
 
 - **Node.js** v24+ and npm 10+
-- **PostgreSQL** 14+ (local or remote)
+- **PostgreSQL** 14+ (local or network)
 - **Git**
-- **Code Editor** (VS Code recommended)
-- **PowerShell 5.1+** (for Windows users)
+
+### Step 1: Clone & Install
+
+```bash
+git clone https://github.com/PyTanay/VTMS.git
+cd VTMS
+
+# Install backend
+cd api
+npm install
+
+# Install frontend
+cd ../client
+npm install
+```
+
+### Step 2: Configure Database
+
+Create a PostgreSQL database and set up the connection string:
+
+```bash
+# Connect to PostgreSQL
+psql -U postgres
+CREATE DATABASE vtms;
+\q
+```
+
+### Step 3: Configure Environment
+
+Create `api/.env`:
+
+```env
+DATABASE_URL="postgresql://username:password@localhost:5432/vtms"
+JWT_SECRET="your-secret-key-min-32-chars-long"
+CLIENT_URL="http://localhost:5173"
+PORT=3000
+```
+
+Optional (for SAMVAD sync):
+
+```env
+SAMVAD_URL="http://samvad-url"
+SAMVAD_USERNAME="your-username"
+SAMVAD_PASSWORD="your-password"
+CREATE_EMPLOYEE_USERS="true"
+EMPLOYEE_DEFAULT_PASSWORD="gnfc123"
+```
+
+Optional (for email notifications):
+
+```env
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT="587"
+SMTP_USER="your-email@gmail.com"
+SMTP_PASS="your-app-password"
+```
+
+### Step 4: Run Database Migrations
+
+```bash
+cd api
+npx prisma migrate dev --name init
+npx prisma db seed    # Populate master data from CSV files
+```
+
+This creates all tables and seeds departments, categories, branches, colleges, states, districts, talukas, cities, and a default admin user.
+
+### Step 5: Start Both Servers
+
+**Terminal 1 — Backend (http://localhost:3000):**
+
+```bash
+cd api
+npm run dev
+```
+
+**Terminal 2 — Frontend (http://localhost:5173):**
+
+```bash
+cd client
+npm run dev
+```
+
+Open **http://localhost:5173** in your browser.
+
+---
+
+## 🔑 Default Login Credentials
+
+| Username | Password  | Role                  |
+| -------- | --------- | --------------------- |
+| `admin`  | `gnfc123` | ADMIN (full access)   |
+| `emp001` | `gnfc123` | RECOMMENDING_EMPLOYEE |
+
+> ⚠️ Change these in production!
 
 ---
 
@@ -73,382 +135,100 @@ Before you begin, ensure you have:
 
 ```
 VTMS/
-├── api/                          # Backend API
+├── api/                          # Backend (Express + Prisma)
 │   ├── src/
-│   │   ├── index.ts              # App entry point
-│   │   ├── prisma.ts             # Database client
-│   │   ├── controllers/          # Route handlers
-│   │   ├── middleware/           # Auth, error handling
-│   │   ├── routes/               # Route definitions
-│   │   ├── jobs/                 # Scheduled jobs (SAMVAD sync)
-│   │   └── utils/                # Email, helpers
+│   │   ├── index.ts              # App entry, middleware, routes
+│   │   ├── prisma.ts             # Prisma client singleton
+│   │   ├── routes/               # All API route definitions
+│   │   ├── services/             # PDF generation, numbering, validation
+│   │   ├── middleware/           # Auth JWT, audit logging, error handling, upload
+│   │   ├── controllers/          # Business logic (auth, master, samvad, upload, user)
+│   │   ├── jobs/                 # Background jobs (SAMVAD sync, queue, cleanup)
+│   │   ├── utils/                # Email utility
+│   │   ├── templates/            # Handlebars email templates
+│   │   └── config/               # Storage paths
 │   ├── prisma/
-│   │   ├── schema.prisma         # Database schema
-│   │   ├── seed.ts               # Database seeding
+│   │   ├── schema.prisma         # 24 database models
+│   │   ├── seed.ts               # CSV-based seed script
 │   │   └── migrations/           # Migration history
-│   ├── package.json
-│   └── tsconfig.json
+│   └── uploads/                  # Stored PDFs & uploaded documents
 │
-├── client/                        # Frontend React app
+├── client/                       # Frontend (React + Vite)
 │   ├── src/
-│   │   ├── main.tsx              # React entry point
-│   │   ├── App.tsx               # Main component
-│   │   ├── components/           # Reusable UI components
-│   │   ├── pages/                # Page components
-│   │   ├── context/              # Auth context
-│   │   ├── api/                  # HTTP client setup
-│   │   └── theme.ts              # Theme configuration
-│   ├── vite.config.ts
-│   ├── package.json
-│   └── tsconfig.json
+│   │   ├── main.tsx              # Entry point
+│   │   ├── App.tsx               # Routes with ProtectedRoute
+│   │   ├── components/           # Reusable: Layout, EmployeeSearch, AuditTimeline, etc.
+│   │   ├── pages/                # 20+ page components
+│   │   ├── context/              # AuthContext, ToastContext
+│   │   ├── api/                  # Axios API client
+│   │   └── theme.ts              # Design tokens
+│   └── public/                   # Static assets (GNFC logo, favicon)
 │
-├── masters/                       # CSV data files
-│   ├── employee_master_template.csv
-│   ├── department_master.csv
-│   └── ...
-│
-├── README.md
-└── .gitignore
+├── masters/                      # CSV master data files for seeding
+├── plan.md                       # Implementation plan & status
+├── todo.md                       # Task tracking checklist
+└── VTMS.md                       # Full product specification
 ```
 
 ---
 
-## 🚀 Installation
+## 🌐 Application Flow
 
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/PyTanay/VTMS.git
-cd VTMS
+```
+Application → ED/GM Approval → Scrutiny → Permission Letter
+    → Document Verification (skipped if no docs uploaded)
+    → Biodata / Joining → Gate Pass → Posting
+    → Training → Certificate → No Dues → Closed
 ```
 
-### 2. Install Dependencies
-
-**Backend:**
-
-```bash
-cd api
-npm install
-```
-
-**Frontend:**
-
-```bash
-cd ../client
-npm install
-```
-
-### 3. Install PostgreSQL
-
-If not already installed, download and install PostgreSQL from https://www.postgresql.org/download/
+Each step has a dedicated page in the sidebar with role-based visibility.
 
 ---
 
-## 🔧 Environment Setup
+## 👥 User Roles & Permissions
 
-### Backend (.env)
-
-Create an `.env` file in the `api/` directory:
-
-```env
-# Database
-DATABASE_URL="postgresql://username:password@localhost:5432/vtms_db"
-
-# JWT
-JWT_SECRET="your-secret-key-here-min-32-chars"
-JWT_EXPIRY="7d"
-
-# CORS & Client
-CLIENT_URL="http://localhost:5173"
-
-# SAMVAD Sync
-CREATE_EMPLOYEE_USERS="true"
-EMPLOYEE_DEFAULT_PASSWORD="gnfc123"
-
-# Email (optional)
-SMTP_HOST="smtp.gmail.com"
-SMTP_PORT="587"
-SMTP_USER="your-email@gmail.com"
-SMTP_PASS="your-app-password"
-
-# Server
-PORT=3000
-NODE_ENV="development"
-```
-
-### Frontend (.env)
-
-Create an `.env` file in the `client/` directory (if needed):
-
-```env
-VITE_API_URL="http://localhost:3000/api"
-```
+| Role                             | Responsibilities                                               |
+| -------------------------------- | -------------------------------------------------------------- |
+| **ADMIN**                        | Full access: manage users, masters, all workflows, SAMVAD sync |
+| **ED_GM_APPROVER**               | Approve/reject applications in Approval Inbox                  |
+| **TRAINING_CENTER_SECTION_HEAD** | Scrutiny queue, document verification, issue certificates      |
+| **TRAINING_IN_CHARGE**           | Permission letters, gate pass, posting planner, biodata        |
+| **RECOMMENDING_EMPLOYEE**        | Submit applications for employee wards                         |
 
 ---
 
-## 🗄️ Database Setup
-
-### 1. Create PostgreSQL Database
-
-```bash
-# Connect to PostgreSQL
-psql -U postgres
-
-# In psql prompt:
-CREATE DATABASE vtms_db;
-\q
-```
-
-Or using a GUI tool like pgAdmin.
-
-### 2. Run Prisma Migrations
-
-```bash
-cd api
-npx prisma migrate dev --name init
-```
-
-This will:
-
-- Create all tables defined in `schema.prisma`
-- Generate the Prisma client
-- Optionally seed the database
-
-### 3. (Optional) Seed Master Data
-
-```bash
-npx prisma db seed
-```
-
-This populates master tables (departments, categories, colleges, etc.) from CSV files.
-
----
-
-## ▶️ Running the Application
-
-### Start Backend
-
-```bash
-cd api
-npm run dev
-```
-
-Backend will run on **http://localhost:3000**
-
-### Start Frontend
-
-In a **new terminal**:
-
-```bash
-cd client
-npm run dev
-```
-
-Frontend will run on **http://localhost:5173**
-
-### Access the App
-
-- **Frontend:** http://localhost:5173
-- **API:** http://localhost:3000/api
-
----
-
-## 🔑 Default Credentials
-
-After seeding, use:
-
-| Username | Password | Role                  |
-| -------- | -------- | --------------------- |
-| admin    | gnfc123  | ADMIN                 |
-| emp001   | gnfc123  | RECOMMENDING_EMPLOYEE |
-
-> ⚠️ **Change these credentials in production!**
-
----
-
-## 🎨 Key Features
-
-### Authentication & Authorization
-
-- JWT-based authentication with secure HTTP-only cookies
-- Role-based access control (RBAC)
-- Protected routes with middleware checks
-
-### Application Workflow
-
-- Multi-stage application status tracking
-- Role-specific views and actions
-- Approval chains for scrutiny, permission letters, biodata verification
-
-### SAMVAD Integration
-
-- Automated nightly employee data sync
-- Manual sync trigger for admins
-- Robust HTML parsing for employee details extraction
-- Automatic user account creation for synced employees
-
-### Admin Features
-
-- User management and listing
-- Manual SAMVAD sync control
-- Master data management
-
-### Reporting & Documents
-
-- Gate pass generation
-- No-due clearance tracking
-- Training reports and certificates
-
----
-
-## 📡 API Documentation
-
-### Authentication Endpoints
-
-**Login**
-
-```
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "username": "admin",
-  "password": "gnfc123"
-}
-```
-
-**Logout**
-
-```
-POST /api/auth/logout
-```
-
-### Application Endpoints
-
-**List Applications**
-
-```
-GET /api/applications
-Authorization: Bearer <token>
-```
-
-**Get Application Details**
-
-```
-GET /api/applications/:id
-Authorization: Bearer <token>
-```
-
-**Create Application**
-
-```
-POST /api/applications
-Content-Type: application/json
-Authorization: Bearer <token>
-```
-
-### SAMVAD Sync (Admin Only)
-
-**Trigger Manual Sync**
-
-```
-POST /api/samvad/sync
-Authorization: Bearer <admin-token>
-```
-
-### User Management (Admin Only)
-
-**List All Users**
-
-```
-GET /api/users
-Authorization: Bearer <admin-token>
-```
-
----
-
-## 🔄 SAMVAD Sync Details
-
-The system automatically syncs employee data from SAMVAD every night at 2 AM. To manually trigger:
-
-1. Log in as admin
-2. Go to **SAMVAD Sync** page (in Navigation)
-3. Click **"Trigger Sync"** button
-4. Monitor sync progress in console/logs
-
-**Synced Fields:**
-
-- Employee ID
-- Full Name (Short, First, Middle, Last)
-- Department
-- Designation
-- Official Email
-- Mobile Number (optional)
-
----
-
-## 🛠️ Development Commands
+## 🧪 Development Commands
 
 ### Backend
 
 ```bash
-# Development mode (with hot reload)
-npm run dev
-
-# Build TypeScript
-npm run build
-
-# Run production build
-npm start
-
-# Type check
-npm exec -- tsc --noEmit
-
-# Prisma Studio (visual DB browser)
-npx prisma studio
+npm run dev         # Development with hot reload (tsx watch)
+npm run build       # Compile TypeScript
+npm start           # Run compiled production build
+npx prisma studio   # Database GUI browser
+npx prisma db seed  # Re-seed master data
 ```
 
 ### Frontend
 
 ```bash
-# Development mode
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-
-# Lint code
-npm run lint
-
-# Type check
-npm run type-check
+npm run dev         # Vite dev server (port 5173)
+npm run build       # Production build
+npm run preview     # Preview production build
+npm run lint        # ESLint check
 ```
-
----
-
-## 📝 Contributing
-
-1. Create a feature branch: `git checkout -b feature/my-feature`
-2. Commit changes: `git commit -m "Add my feature"`
-3. Push to origin: `git push origin feature/my-feature`
-4. Open a Pull Request on GitHub
 
 ---
 
 ## 📄 License
 
-This project is proprietary to GNFC Ltd. Unauthorized use or distribution is prohibited.
+Proprietary — GNFC Ltd. Unauthorized use or distribution is prohibited.
 
 ---
 
 ## 📞 Support
 
-For issues, questions, or contributions, please reach out to the development team or create an issue on the GitHub repository.
-
----
+For issues or contributions, please reach out to the development team or create an issue on the GitHub repository.
 
 **Last Updated:** May 2026  
 **Repository:** https://github.com/PyTanay/VTMS

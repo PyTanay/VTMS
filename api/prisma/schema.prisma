@@ -418,6 +418,7 @@ model Certificate {
   is_duplicate           Boolean     @default(false)
   duplicate_approved_by  String?
   duplicate_reason       String?
+  issued_at              DateTime?
   createdAt              DateTime    @default(now())
   updatedAt              DateTime    @updatedAt
 

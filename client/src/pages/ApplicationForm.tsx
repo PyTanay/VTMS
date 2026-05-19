@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
+import FileUpload from "../components/FileUpload";
+import { useAuth } from "../context/AuthContext";
 
 interface MasterItem {
   id: number;
@@ -10,7 +12,8 @@ interface MasterItem {
 }
 
 const ApplicationForm: React.FC = () => {
-  const [applicationNo, setApplicationNo] = useState(`APP-${Date.now()}`);
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [applicantType, setApplicantType] = useState("EMPLOYEE_WARD");
   const [studentName, setStudentName] = useState("");
   const [studentSurname, setStudentSurname] = useState("");
@@ -20,17 +23,25 @@ const ApplicationForm: React.FC = () => {
   const [categoryId, setCategoryId] = useState<number | "">("");
   const [branchId, setBranchId] = useState<number | "">("");
   const [collegeId, setCollegeId] = useState<number | "">("");
-  const [yearOfStudy, setYearOfStudy] = useState(1);
-  const [semester, setSemester] = useState(1);
+  const [yearOfStudy, setYearOfStudy] = useState(3);
+  const [semester, setSemester] = useState(5);
   const [requestedFrom, setRequestedFrom] = useState("");
   const [requestedTo, setRequestedTo] = useState("");
   const [referenceDetails, setReferenceDetails] = useState("");
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [selectedEmployee, setSelectedEmployee] = useState<{ id: number; name: string; employee_no: string } | null>(null);
+  const [employeeResults, setEmployeeResults] = useState<Array<{ id: number; name: string; employee_no: string; department: string }>>(
+    [],
+  );
+  const [searchingEmployee, setSearchingEmployee] = useState(false);
+
   const [categories, setCategories] = useState<MasterItem[]>([]);
   const [branches, setBranches] = useState<MasterItem[]>([]);
   const [colleges, setColleges] = useState<MasterItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const navigate = useNavigate();
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
 
   useEffect(() => {
     const loadMasters = async () => {
@@ -47,18 +58,36 @@ const ApplicationForm: React.FC = () => {
         console.error("Failed to load master data", error);
       }
     };
-
     loadMasters();
   }, []);
+
+  const searchEmployees = async (query: string) => {
+    if (!query || query.length < 2) return;
+    setSearchingEmployee(true);
+    try {
+      const res = await api.get("/employees", { params: { search: query, active: true } });
+      setEmployeeResults(res.data.data || []);
+    } catch {
+      setEmployeeResults([]);
+    } finally {
+      setSearchingEmployee(false);
+    }
+  };
+
+  const selectEmployee = (emp: { id: number; name: string; employee_no: string }) => {
+    setSelectedEmployee(emp);
+    setEmployeeSearch(`${emp.name} (${emp.employee_no})`);
+    setEmployeeResults([]);
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitError("");
+    setValidationErrors([]);
     setLoading(true);
 
     try {
-      const payload = {
-        application_no: applicationNo,
+      const payload: Record<string, any> = {
         applicant_type: applicantType,
         student_name: studentName,
         student_surname: studentSurname,
@@ -72,326 +101,336 @@ const ApplicationForm: React.FC = () => {
         collegeId: Number(collegeId),
         requested_from: requestedFrom,
         requested_to: requestedTo,
-        reference_details: applicantType === "OTHER_REFERENCE" ? referenceDetails : undefined,
+        presently_pursuing: true,
+        training_compulsory: true,
+        part_of_curriculum: true,
+        full_time_course: true,
         status: "SUBMITTED",
       };
 
-      await api.post("/applications", payload);
-      navigate("/applications");
+      if (applicantType === "EMPLOYEE_WARD" && selectedEmployee) {
+        payload.recommending_employee_id = selectedEmployee.id;
+      }
+      if (applicantType === "OTHER_REFERENCE") {
+        payload.reference_details = referenceDetails;
+      }
+
+      const res = await api.post("/applications", payload);
+      const created = res.data.data;
+
+      // Attach uploaded files
+      if (created && uploadedFiles.length) {
+        await Promise.all(
+          uploadedFiles.map((f) =>
+            api.post("/document-verification", { applicationId: created.id, file_path: f.url, doc_type: f.filename }),
+          ),
+        );
+      }
+      navigate(`/applications/${created.id}`);
     } catch (err: any) {
-      setSubmitError(err?.response?.data?.message || "Unable to create application.");
+      const msg = err?.response?.data?.message || "Unable to create application.";
+      const errors = err?.response?.data?.errors;
+      if (Array.isArray(errors) && errors.length > 0) {
+        setValidationErrors(errors);
+      } else {
+        setSubmitError(msg);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="glass-panel" style={{ padding: "24px" }}>
-      <h2>Create Application</h2>
-      <p style={{ color: "var(--text-secondary)", marginTop: "8px" }}>Create a new trainee application with the required details.</p>
+    <div className="page-gap">
+      <div className="panel">
+        <div className="panel-body">
+          <div className="flex-between" style={{ marginBottom: "20px" }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: "18px" }}>New Trainee Application</h2>
+              <p style={{ color: "var(--text-secondary)", marginTop: "4px", fontSize: "14px" }}>
+                Create a new training application. Fill in all required fields to submit.
+              </p>
+            </div>
+          </div>
 
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: "20px", marginTop: "24px" }}>
-        <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "1fr 1fr" }}>
-          <label>
-            Application No
-            <input
-              type="text"
-              value={applicationNo}
-              readOnly
+          {validationErrors.length > 0 && (
+            <div
               style={{
-                width: "100%",
-                marginTop: "8px",
-                padding: "10px",
+                padding: "12px 16px",
+                background: "#fef2f2",
                 borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
-              }}
-            />
-          </label>
-          <label>
-            Applicant Type
-            <select
-              value={applicantType}
-              onChange={(e) => setApplicantType(e.target.value)}
-              style={{
-                width: "100%",
-                marginTop: "8px",
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
+                border: "1px solid #fecaca",
+                color: "#991b1b",
+                marginBottom: "16px",
+                fontSize: "14px",
               }}
             >
-              <option value="EMPLOYEE_WARD">Employee Ward</option>
-              <option value="OTHER_REFERENCE">Other Reference</option>
-            </select>
-          </label>
-          <label>
-            Student Name
-            <input
-              type="text"
-              value={studentName}
-              onChange={(e) => setStudentName(e.target.value)}
-              required
+              <strong>Please fix the following:</strong>
+              <ul style={{ margin: "8px 0 0 16px" }}>
+                {validationErrors.map((e, i) => (
+                  <li key={i}>{e}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {submitError && (
+            <div
               style={{
-                width: "100%",
-                marginTop: "8px",
-                padding: "10px",
+                padding: "12px 16px",
+                background: "#fef2f2",
                 borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
-              }}
-            />
-          </label>
-          <label>
-            Student Surname
-            <input
-              type="text"
-              value={studentSurname}
-              onChange={(e) => setStudentSurname(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                marginTop: "8px",
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
-              }}
-            />
-          </label>
-          <label>
-            Father's Name
-            <input
-              type="text"
-              value={studentFatherName}
-              onChange={(e) => setStudentFatherName(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                marginTop: "8px",
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
-              }}
-            />
-          </label>
-          <label>
-            Student Email
-            <input
-              type="email"
-              value={studentEmail}
-              onChange={(e) => setStudentEmail(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                marginTop: "8px",
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
-              }}
-            />
-          </label>
-          <label>
-            Student Mobile
-            <input
-              type="tel"
-              value={studentMobile}
-              onChange={(e) => setStudentMobile(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                marginTop: "8px",
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
-              }}
-            />
-          </label>
-          <label>
-            Category
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(Number(e.target.value))}
-              required
-              style={{
-                width: "100%",
-                marginTop: "8px",
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
+                border: "1px solid #fecaca",
+                color: "#991b1b",
+                marginBottom: "16px",
+                fontSize: "14px",
               }}
             >
-              <option value="">Select category</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Branch
-            <select
-              value={branchId}
-              onChange={(e) => setBranchId(Number(e.target.value))}
-              required
-              style={{
-                width: "100%",
-                marginTop: "8px",
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
-              }}
-            >
-              <option value="">Select branch</option>
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.branch_name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            College
-            <select
-              value={collegeId}
-              onChange={(e) => setCollegeId(Number(e.target.value))}
-              required
-              style={{
-                width: "100%",
-                marginTop: "8px",
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
-              }}
-            >
-              <option value="">Select college</option>
-              {colleges.map((college) => (
-                <option key={college.id} value={college.id}>
-                  {college.college_name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Year of Study
-            <input
-              type="number"
-              min={1}
-              value={yearOfStudy}
-              onChange={(e) => setYearOfStudy(Number(e.target.value))}
-              required
-              style={{
-                width: "100%",
-                marginTop: "8px",
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
-              }}
-            />
-          </label>
-          <label>
-            Semester
-            <input
-              type="number"
-              min={1}
-              value={semester}
-              onChange={(e) => setSemester(Number(e.target.value))}
-              required
-              style={{
-                width: "100%",
-                marginTop: "8px",
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
-              }}
-            />
-          </label>
-          <label>
-            Requested From
-            <input
-              type="date"
-              value={requestedFrom}
-              onChange={(e) => setRequestedFrom(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                marginTop: "8px",
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
-              }}
-            />
-          </label>
-          <label>
-            Requested To
-            <input
-              type="date"
-              value={requestedTo}
-              onChange={(e) => setRequestedTo(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                marginTop: "8px",
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
-              }}
-            />
-          </label>
+              {submitError}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <div className="form-grid-2">
+              {/* Applicant Type */}
+              <div className="form-group">
+                <label className="form-label">Applicant Type *</label>
+                <select
+                  className="form-input"
+                  value={applicantType}
+                  onChange={(e) => {
+                    setApplicantType(e.target.value);
+                    setSelectedEmployee(null);
+                    setEmployeeSearch("");
+                  }}
+                >
+                  <option value="EMPLOYEE_WARD">Employee Ward</option>
+                  <option value="OTHER_REFERENCE">Other Reference</option>
+                </select>
+              </div>
+
+              {/* Employee Search */}
+              {applicantType === "EMPLOYEE_WARD" && (
+                <div className="form-group">
+                  <label className="form-label">Recommending Employee *</label>
+                  <input
+                    className="form-input"
+                    value={employeeSearch}
+                    onChange={(e) => {
+                      setEmployeeSearch(e.target.value);
+                      searchEmployees(e.target.value);
+                      setSelectedEmployee(null);
+                    }}
+                    placeholder="Search by name or employee code..."
+                  />
+                  {searchingEmployee && <span className="form-hint">Searching...</span>}
+                  {employeeResults.length > 0 && (
+                    <div
+                      style={{
+                        marginTop: "4px",
+                        border: "1px solid var(--border-color)",
+                        borderRadius: "8px",
+                        maxHeight: "150px",
+                        overflow: "auto",
+                        background: "var(--secondary-bg)",
+                      }}
+                    >
+                      {employeeResults.map((emp) => (
+                        <div
+                          key={emp.id}
+                          style={{
+                            padding: "8px 12px",
+                            cursor: "pointer",
+                            borderBottom: "1px solid var(--border-color)",
+                            fontSize: "13px",
+                          }}
+                          onClick={() => selectEmployee(emp)}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--nav-hover)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <strong>{emp.name}</strong> ({emp.employee_no}) — {emp.department}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {selectedEmployee && (
+                    <div style={{ marginTop: "4px", color: "var(--primary-accent)", fontSize: "13px", fontWeight: 500 }}>
+                      ✅ Selected: {selectedEmployee.name}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Other Reference Details */}
+              {applicantType === "OTHER_REFERENCE" && (
+                <div className="form-group">
+                  <label className="form-label">Reference Details *</label>
+                  <textarea
+                    className="form-input"
+                    rows={3}
+                    value={referenceDetails}
+                    onChange={(e) => setReferenceDetails(e.target.value)}
+                    placeholder="Enter details (e.g., Retired Employee, VVIP Reference, etc.)"
+                  />
+                </div>
+              )}
+
+              <div className="form-group">
+                <label className="form-label">Student Name *</label>
+                <input
+                  className="form-input"
+                  value={studentName}
+                  onChange={(e) => setStudentName(e.target.value)}
+                  required
+                  placeholder="First name"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Student Surname *</label>
+                <input
+                  className="form-input"
+                  value={studentSurname}
+                  onChange={(e) => setStudentSurname(e.target.value)}
+                  required
+                  placeholder="Last name"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Father's Name *</label>
+                <input
+                  className="form-input"
+                  value={studentFatherName}
+                  onChange={(e) => setStudentFatherName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Email *</label>
+                <input
+                  className="form-input"
+                  type="email"
+                  value={studentEmail}
+                  onChange={(e) => setStudentEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Mobile *</label>
+                <input
+                  className="form-input"
+                  type="tel"
+                  value={studentMobile}
+                  onChange={(e) => setStudentMobile(e.target.value)}
+                  required
+                  placeholder="10-digit number"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Category *</label>
+                <select className="form-input" value={categoryId} onChange={(e) => setCategoryId(Number(e.target.value))} required>
+                  <option value="">-- Select Category --</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Branch *</label>
+                <select className="form-input" value={branchId} onChange={(e) => setBranchId(Number(e.target.value))} required>
+                  <option value="">-- Select Branch --</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.branch_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">College *</label>
+                <select className="form-input" value={collegeId} onChange={(e) => setCollegeId(Number(e.target.value))} required>
+                  <option value="">-- Select College --</option>
+                  {colleges.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.college_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Year of Study *</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  min={1}
+                  max={4}
+                  value={yearOfStudy}
+                  onChange={(e) => setYearOfStudy(Number(e.target.value))}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Semester *</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  min={1}
+                  max={8}
+                  value={semester}
+                  onChange={(e) => setSemester(Number(e.target.value))}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Requested From *</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={requestedFrom}
+                  onChange={(e) => setRequestedFrom(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Requested To *</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={requestedTo}
+                  onChange={(e) => setRequestedTo(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Documents Upload */}
+            <div style={{ marginTop: "20px" }}>
+              <label className="form-label">Upload supporting documents (optional)</label>
+              <FileUpload
+                onUploaded={(item) => {
+                  if (item) setUploadedFiles((s) => [...s, item]);
+                }}
+              />
+              {uploadedFiles.length > 0 && (
+                <div style={{ marginTop: "8px", fontSize: "13px", color: "var(--text-secondary)" }}>
+                  {uploadedFiles.length} file(s) attached
+                </div>
+              )}
+            </div>
+
+            {/* Submit */}
+            <div style={{ marginTop: "24px", display: "flex", gap: "12px" }}>
+              <button type="submit" className="btn btn-primary" disabled={loading} style={{ padding: "12px 24px" }}>
+                {loading ? "Submitting..." : "Submit Application"}
+              </button>
+              <button type="button" className="btn btn-outline" onClick={() => navigate("/applications")}>
+                Cancel
+              </button>
+            </div>
+          </form>
         </div>
-
-        {applicantType === "OTHER_REFERENCE" && (
-          <label>
-            Reference Details
-            <textarea
-              value={referenceDetails}
-              onChange={(e) => setReferenceDetails(e.target.value)}
-              rows={4}
-              style={{
-                width: "100%",
-                marginTop: "8px",
-                padding: "10px",
-                borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "white",
-              }}
-            />
-          </label>
-        )}
-
-        {submitError && <p style={{ color: "#f87171" }}>{submitError}</p>}
-
-        <button type="submit" className="premium-btn" disabled={loading} style={{ width: "160px", padding: "12px 16px" }}>
-          {loading ? "Submitting…" : "Submit Application"}
-        </button>
-      </form>
+      </div>
     </div>
   );
 };

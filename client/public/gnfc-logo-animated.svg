@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 150" width="400" height="150">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a5276"/>
+      <stop offset="50%" style="stop-color:#2e86c1"/>
+      <stop offset="100%" style="stop-color:#1a5276"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3498db;stop-opacity:0">
+        <animate attributeName="offset" values="0;1;0" dur="3s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="50%" style="stop-color:#85c1e9;stop-opacity:0.8"/>
+      <stop offset="100%" style="stop-color:#3498db;stop-opacity:0">
+        <animate attributeName="offset" values="0;1;0" dur="3s" repeatCount="indefinite"/>
+      </stop>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="150" rx="16" fill="url(#g)"/>
+  <rect x="2" y="2" width="396" height="146" rx="14" fill="none" stroke="url(#g2)" stroke-width="2">
+    <animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  <text x="200" y="50" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle" opacity="0.9">GUJARAT NARMADA VALLEY</text>
+  <text x="200" y="70" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle" opacity="0.9">FERTILIZERS & CHEMICALS LTD.</text>
+  <text x="200" y="105" font-family="Arial,sans-serif" font-size="22" font-weight="bold" fill="#87ceeb" text-anchor="middle">
+    VTMS
+    <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" repeatCount="indefinite"/>
+  </text>
+  <text x="200" y="125" font-family="Arial,sans-serif" font-size="10" fill="#aed6f1" text-anchor="middle">Vocational Training Management System</text>
+</svg>
