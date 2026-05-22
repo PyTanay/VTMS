@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api";
+import { useAuth } from "../context/AuthContext";
 
 interface ApplicationItem {
   id: number;
@@ -37,6 +38,7 @@ const statusStyles: Record<string, string> = {
 };
 
 const Applications: React.FC = () => {
+  const { user } = useAuth();
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -91,10 +93,35 @@ const Applications: React.FC = () => {
                 Review and manage trainee applications. Total: {totalCount}
               </p>
             </div>
-            <Link className="btn btn-primary" to="/applications/new">
-              + New Application
-            </Link>
+            {user?.role !== "RECOMMENDING_EMPLOYEE" && (
+              <Link className="btn btn-primary" to="/applications/new">
+                + New Application
+              </Link>
+            )}
           </div>
+
+          {/* RBAC Scope Indicator */}
+          {user?.role === "RECOMMENDING_EMPLOYEE" && (
+            <div
+              style={{
+                background: "var(--primary-accent-light, #e0f2fe)",
+                border: "1px solid var(--primary-accent, #2563eb)",
+                borderRadius: "8px",
+                padding: "10px 16px",
+                marginBottom: "16px",
+                fontSize: "14px",
+                color: "var(--primary-accent, #2563eb)",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <span>🔍</span>
+              <span>
+                <strong>Scope:</strong> Showing only applications you recommended. To see all applications, contact an administrator.
+              </span>
+            </div>
+          )}
 
           {/* Filters */}
           <form onSubmit={handleSearch} className="search-bar" style={{ marginBottom: "16px" }}>

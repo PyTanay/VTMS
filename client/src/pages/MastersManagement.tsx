@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import api from "../api";
+import Modal from "../components/Modal";
+import { useToast } from "../context/ToastContext";
 
 interface MasterEntity {
   id: number;
@@ -37,6 +39,7 @@ const nameFieldForEntity = (entityKey: string): string => {
 };
 
 const MastersManagement: React.FC = () => {
+  const { addToast } = useToast();
   const [activeEntity, setActiveEntity] = useState(ENTITIES[0].key);
   const [items, setItems] = useState<MasterEntity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +51,7 @@ const MastersManagement: React.FC = () => {
   const [formExtra, setFormExtra] = useState<Record<string, any>>({});
   const [parentOptions, setParentOptions] = useState<MasterEntity[]>([]);
   const [formParentId, setFormParentId] = useState<number | "">("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const config = ENTITIES.find((e) => e.key === activeEntity)!;
 
@@ -142,13 +146,14 @@ const MastersManagement: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this item?")) return;
     try {
       await api.delete(`/masters/${activeEntity}/${id}`);
       await loadItems();
+      addToast("success", "Item deleted successfully");
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to delete");
+      addToast("error", err?.response?.data?.message || "Failed to delete");
     }
+    setConfirmDeleteId(null);
   };
 
   const getParentName = (item: MasterEntity): string => {
@@ -321,7 +326,7 @@ const MastersManagement: React.FC = () => {
                           <button
                             className="btn btn-outline btn-sm"
                             style={{ color: "#dc2626" }}
-                            onClick={() => handleDelete(item.id)}
+                            onClick={() => setConfirmDeleteId(item.id)}
                           >
                             Delete
                           </button>
@@ -338,6 +343,24 @@ const MastersManagement: React.FC = () => {
           )}
         </div>
       </div>
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={confirmDeleteId !== null}
+        title="Confirm Delete"
+        onClose={() => setConfirmDeleteId(null)}
+        actions={
+          <>
+            <button className="btn btn-outline" onClick={() => setConfirmDeleteId(null)}>
+              Cancel
+            </button>
+            <button className="btn btn-primary" style={{ background: "#dc2626" }} onClick={() => handleDelete(confirmDeleteId!)}>
+              Delete
+            </button>
+          </>
+        }
+      >
+        <p>Are you sure you want to delete this item? This action cannot be undone.</p>
+      </Modal>
     </div>
   );
 };

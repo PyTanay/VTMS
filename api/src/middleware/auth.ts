@@ -5,6 +5,7 @@ export interface AuthUserPayload {
   id: number;
   username: string;
   role: string;
+  employeeId?: number | null;
 }
 
 export interface AuthRequest extends Request {
@@ -29,6 +30,7 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
       id: Number((decoded as any).id),
       username: String((decoded as any).username || ""),
       role: String((decoded as any).role),
+      employeeId: (decoded as any).employeeId ? Number((decoded as any).employeeId) : null,
     };
     next();
   } catch (err) {

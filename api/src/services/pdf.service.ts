@@ -3,34 +3,97 @@ import { uploadsDir, uploadsBaseUrl } from "../config/storage";
 import fs from "fs";
 import path from "path";
 
-/** Add GNFC letterhead to any PDF */
+/** Add GNFC letterhead to any PDF — with 40mm (~113pt) top space for physical letterhead */
 const addGnfcHeader = (doc: PDFKit.PDFDocument) => {
-  const headerY = 30;
-  // Top accent line
-  doc.rect(30, headerY, doc.page.width - 60, 3).fill("#1a237e");
+  const leftMargin = 50;
+  const rightMargin = 50;
+  const pageWidth = doc.page.width;
+  const contentWidth = pageWidth - leftMargin - rightMargin;
+
+  // ── Letterhead Space (40mm ≈ 113pt) ──
+  // Dotted border to indicate cut/print boundary
+  const letterheadSpaceBottom = 115;
+  const headerTextY = letterheadSpaceBottom - 80;
+
+  // "Letterhead" indicator (faint)
   doc
-    .fontSize(14)
+    .fontSize(6)
+    .fillColor("#ccc")
+    .font("Helvetica")
+    .text("40mm letterhead space", leftMargin, letterheadSpaceBottom - 12, {
+      width: contentWidth,
+      align: "center",
+    });
+
+  // ── GNFC Logo (SVG converted to text-based) ──
+  // Try to embed the SVG logo file if it exists
+  try {
+    const logoPath = path.join(__dirname, "../../gnfc_logo_wotext.svg");
+    if (fs.existsSync(logoPath)) {
+      const svgContent = fs.readFileSync(logoPath, "utf-8");
+      doc.image(svgContent, leftMargin, headerTextY, { fit: [40, 40] });
+    }
+  } catch {
+    // Logo not available — use text fallback
+  }
+
+  // ── Company name & details ──
+  doc
+    .fontSize(11)
     .fillColor("#1a237e")
     .font("Helvetica-Bold")
-    .text("GUJARAT NARMADA VALLEY FERTILIZERS & CHEMICALS LTD.", 30, headerY + 8, { align: "center", width: doc.page.width - 60 });
-  doc
-    .fontSize(8)
-    .fillColor("#555")
-    .font("Helvetica")
-    .text("(A Government of Gujarat Undertaking)  |  CIN: L24110GJ1976PLC002667", { align: "center", width: doc.page.width - 60 });
-  doc
-    .fontSize(8)
-    .fillColor("#555")
-    .font("Helvetica")
-    .text("P.O. Narmadanagar 392 015, Dist. Bharuch, Gujarat  |  Phone: (02642) 232700  |  www.gnfc.in", {
-      align: "center",
-      width: doc.page.width - 60,
+    .text("GUJARAT NARMADA VALLEY FERTILIZERS & CHEMICALS LTD.", leftMargin + 45, headerTextY, {
+      width: contentWidth - 45,
+      align: "left",
     });
-  // Bottom line of header
-  const headerBottom = 72;
-  doc.rect(30, headerBottom, doc.page.width - 60, 1).fill("#ccc");
+
+  let yPos = doc.y;
+
+  doc
+    .fontSize(7.5)
+    .fillColor("#444")
+    .font("Helvetica")
+    .text("(A Government of Gujarat Undertaking)", leftMargin + 45, yPos + 2, { width: contentWidth - 45, align: "left" });
+
+  yPos = doc.y;
+
+  doc
+    .fontSize(7)
+    .fillColor("#555")
+    .font("Helvetica")
+    .text(`CIN: L24110GJ1976PLC002667  |  GST: 24AAACG2574B1Z1`, leftMargin + 45, yPos + 2, {
+      width: contentWidth - 45,
+      align: "left",
+    });
+
+  yPos = doc.y;
+
+  doc
+    .fontSize(7)
+    .fillColor("#555")
+    .font("Helvetica")
+    .text("P.O. Narmadanagar 392 015, Dist. Bharuch, Gujarat", leftMargin + 45, yPos + 2, {
+      width: contentWidth - 45,
+      align: "left",
+    });
+
+  yPos = doc.y;
+
+  doc
+    .fontSize(7)
+    .fillColor("#555")
+    .font("Helvetica")
+    .text("Phone: (02642) 232700  |  Website: www.gnfc.in  |  Email: training@gnfc.in", leftMargin + 45, yPos + 2, {
+      width: contentWidth - 45,
+      align: "left",
+    });
+
+  // ── Separator line ──
+  const separatorY = letterheadSpaceBottom + 5;
+  doc.rect(leftMargin, separatorY, contentWidth, 1.5).fill("#1a237e");
   doc.fillColor("#000");
-  return headerBottom;
+
+  return separatorY;
 };
 
 export const generatePermissionLetterPdf = async (application: any, options?: { ref?: string }) => {

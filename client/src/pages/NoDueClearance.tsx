@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "../api";
+import Modal from "../components/Modal";
+import { useToast } from "../context/ToastContext";
 
 interface Line {
   id: number;
@@ -24,6 +26,7 @@ interface AppItem {
 }
 
 const NoDueClearance: React.FC = () => {
+  const { addToast } = useToast();
   const [apps, setApps] = useState<AppItem[]>([]);
   const [applicationId, setApplicationId] = useState("");
   const [form, setForm] = useState<Form | null>(null);
@@ -31,6 +34,9 @@ const NoDueClearance: React.FC = () => {
   const [appsLoading, setAppsLoading] = useState(true);
   const [error, setError] = useState("");
   const [clearingId, setClearingId] = useState<number | null>(null);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [confirmFinalize, setConfirmFinalize] = useState(false);
+  const [remarkInput, setRemarkInput] = useState({ open: false, lineId: 0, value: "" });
 
   useEffect(() => {
     const loadApps = async () => {
@@ -65,26 +71,49 @@ const NoDueClearance: React.FC = () => {
   };
 
   const handleClearLine = async (lineId: number) => {
-    const remarks = prompt("Enter remarks:");
-    if (remarks === null) return;
+    setRemarkInput({ open: true, lineId, value: "" });
+  };
+
+  const submitClearLine = async () => {
+    const { lineId, value } = remarkInput;
+    if (!value.trim()) return addToast("error", "Remarks are required");
     setClearingId(lineId);
     try {
-      const res = await api.patch(`/no-dues/line/${lineId}/clear`, { remarks });
+      const res = await api.patch(`/no-dues/line/${lineId}/clear`, { remarks: value.trim() });
       setForm((prev) => (prev ? { ...prev, lines: prev.lines.map((l) => (l.id === lineId ? res.data.data : l)) } : prev));
+      addToast("success", "Line cleared");
     } catch {
-      alert("Failed");
+      addToast("error", "Failed");
     } finally {
       setClearingId(null);
+      setRemarkInput({ open: false, lineId: 0, value: "" });
     }
   };
 
-  const handleFinalize = async () => {
-    if (!form || !window.confirm("Finalize this no-due clearance?")) return;
+  const handleFinalizeNow = async () => {
+    if (!form) return;
     try {
       await api.patch(`/no-dues/${form.id}/finalize`);
       setForm((prev) => (prev ? { ...prev, status: "CLEARED" } : prev));
+      addToast("success", "No-due clearance finalized");
     } catch {
-      alert("Failed to finalize");
+      addToast("error", "Failed to finalize");
+    }
+    setConfirmFinalize(false);
+  };
+
+  const handleGeneratePdf = async () => {
+    if (!form) return;
+    setGeneratingPdf(true);
+    try {
+      const res = await api.post(`/no-dues/${form.id}/generate`);
+      const pdfUrl = res.data.data?.pdfUrl;
+      if (pdfUrl) window.open(pdfUrl, "_blank");
+      addToast("success", "PDF generated");
+    } catch {
+      addToast("error", "Failed to generate PDF");
+    } finally {
+      setGeneratingPdf(false);
     }
   };
 
@@ -132,11 +161,16 @@ const NoDueClearance: React.FC = () => {
                   <span style={{ color: form.status === "CLEARED" ? "#166534" : "#92400e", fontWeight: 600 }}>{form.status}</span>
                 </p>
               </div>
-              {allCleared && form.status !== "CLEARED" && (
-                <button className="btn btn-primary" onClick={handleFinalize}>
-                  Finalize Clearance
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button className="btn btn-outline" onClick={handleGeneratePdf} disabled={generatingPdf}>
+                  {generatingPdf ? "Generating..." : "📄 Download PDF"}
                 </button>
-              )}
+                {allCleared && form.status !== "CLEARED" && (
+                  <button className="btn btn-primary" onClick={() => setConfirmFinalize(true)}>
+                    Finalize Clearance
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="table-wrap">
@@ -184,6 +218,54 @@ const NoDueClearance: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Remarks Input Modal */}
+      <Modal
+        open={remarkInput.open}
+        title="Enter Remarks"
+        onClose={() => setRemarkInput({ open: false, lineId: 0, value: "" })}
+        actions={
+          <>
+            <button className="btn btn-outline" onClick={() => setRemarkInput({ open: false, lineId: 0, value: "" })}>
+              Cancel
+            </button>
+            <button className="btn btn-primary" onClick={submitClearLine}>
+              Confirm
+            </button>
+          </>
+        }
+      >
+        <div>
+          <label className="form-label">Remarks *</label>
+          <textarea
+            className="form-input"
+            rows={3}
+            autoFocus
+            value={remarkInput.value}
+            onChange={(e) => setRemarkInput((prev) => ({ ...prev, value: e.target.value }))}
+            placeholder="Enter clearance remarks..."
+            style={{ width: "100%", resize: "vertical" }}
+          />
+        </div>
+      </Modal>
+
+      {/* Finalize Confirmation Modal */}
+      <Modal
+        open={confirmFinalize}
+        title="Confirm Finalize"
+        onClose={() => setConfirmFinalize(false)}
+        actions={
+          <>
+            <button className="btn btn-outline" onClick={() => setConfirmFinalize(false)}>
+              Cancel
+            </button>
+            <button className="btn btn-primary" onClick={handleFinalizeNow}>
+              Yes, Finalize
+            </button>
+          </>
+        }
+      >
+        <p>Are you sure you want to finalize this no-due clearance? This marks all items as cleared.</p>
+      </Modal>
     </div>
   );
 };

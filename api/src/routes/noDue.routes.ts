@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authenticate, authorize, AuthRequest } from "../middleware/auth";
 import prisma from "../prisma";
 import numberingService from "../services/numbering.service";
+import { generateNoDuePdf } from "../services/pdf.service";
 
 export const noDueRouter = Router();
 noDueRouter.use(authenticate);
@@ -10,6 +11,32 @@ noDueRouter.get("/", async (_req: AuthRequest, res, next) => {
   try {
     const forms = await prisma.noDueForm.findMany({ include: { application: true, lines: true } });
     res.json({ success: true, data: forms });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Generate No Due PDF
+noDueRouter.post("/:noDueId/generate", authorize(["ADMIN", "TRAINING_CENTER_SECTION_HEAD"]), async (req: AuthRequest, res, next) => {
+  try {
+    const noDueId = Number(req.params.noDueId);
+
+    const noDueForm = await prisma.noDueForm.findUnique({
+      where: { id: noDueId },
+      include: { application: true, lines: true },
+    });
+
+    if (!noDueForm) {
+      return res.status(404).json({ success: false, message: "No Due form not found" });
+    }
+
+    const result = await generateNoDuePdf(noDueForm);
+
+    if (req.logAudit) {
+      await req.logAudit("GENERATE_PDF", "no_due_form", noDueId, undefined, { filename: result.filename });
+    }
+
+    res.json({ success: true, data: { pdfUrl: result.url } });
   } catch (error) {
     next(error);
   }

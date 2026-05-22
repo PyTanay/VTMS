@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from "react";
 import api from "../api";
 import { useAuth } from "../context/AuthContext";
+import Modal from "../components/Modal";
+import { useToast } from "../context/ToastContext";
 
 interface DocItem {
   id: number;
@@ -20,8 +22,10 @@ const DocumentVerification: React.FC = () => {
   const [filteredDocs, setFilteredDocs] = useState<DocItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const { addToast } = useToast();
   const [verifiedId, setVerifiedId] = useState<number | null>(null);
   const [total, setTotal] = useState(0);
+  const [verifyRemark, setVerifyRemark] = useState({ open: false, id: 0, value: "" });
 
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState("");
@@ -66,17 +70,19 @@ const DocumentVerification: React.FC = () => {
     loadDocTypes();
   }, []);
 
-  const handleVerify = async (id: number) => {
-    const remarks = prompt("Enter remarks (optional):");
-    if (remarks === null) return;
+  const handleVerify = async () => {
+    const id = verifyRemark.id;
+    const remarks = verifyRemark.value.trim() || undefined;
     setVerifiedId(id);
     try {
-      await api.patch(`/document-verification/${id}/verify`, { remarks: remarks || undefined });
+      await api.patch(`/document-verification/${id}/verify`, { remarks });
       await loadDocs();
+      addToast("success", "Document verified");
     } catch {
-      alert("Failed to verify document");
+      addToast("error", "Failed to verify document");
     } finally {
       setVerifiedId(null);
+      setVerifyRemark({ open: false, id: 0, value: "" });
     }
   };
 
@@ -213,7 +219,7 @@ const DocumentVerification: React.FC = () => {
                           {!doc.verified && isAuthorized && (
                             <button
                               className="btn btn-primary btn-sm"
-                              onClick={() => handleVerify(doc.id)}
+                              onClick={() => setVerifyRemark({ open: true, id: doc.id, value: "" })}
                               disabled={verifiedId === doc.id}
                               style={{ fontSize: "11px", padding: "4px 10px" }}
                             >
@@ -233,6 +239,35 @@ const DocumentVerification: React.FC = () => {
           )}
         </div>
       </div>
+      {/* Verify Remarks Modal */}
+      <Modal
+        open={verifyRemark.open}
+        title="Verify Document"
+        onClose={() => setVerifyRemark({ open: false, id: 0, value: "" })}
+        actions={
+          <>
+            <button className="btn btn-outline" onClick={() => setVerifyRemark({ open: false, id: 0, value: "" })}>
+              Cancel
+            </button>
+            <button className="btn btn-primary" onClick={handleVerify}>
+              Verify
+            </button>
+          </>
+        }
+      >
+        <div>
+          <label className="form-label">Remarks (optional)</label>
+          <textarea
+            className="form-input"
+            rows={3}
+            autoFocus
+            value={verifyRemark.value}
+            onChange={(e) => setVerifyRemark((prev) => ({ ...prev, value: e.target.value }))}
+            placeholder="Enter verification remarks..."
+            style={{ width: "100%", resize: "vertical" }}
+          />
+        </div>
+      </Modal>
     </div>
   );
 };

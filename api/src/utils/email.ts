@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import handlebars from "handlebars";
 import fs from "fs";
 import path from "path";
+import prisma from "../prisma";
 
 // ── Config with validation & fallback ──
 const SMTP_HOST = process.env.SMTP_HOST || "";
@@ -11,6 +12,11 @@ const SMTP_SECURE = process.env.SMTP_SECURE === "true";
 const SMTP_USER = process.env.SMTP_USER || "";
 const SMTP_PASS = process.env.SMTP_PASS || "";
 const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER || "noreply@gnfc.in";
+
+// ── Dev Mode: redirect all emails to dev inbox ──
+const DEV_EMAIL = process.env.DEV_EMAIL || "tjdesai@gnfc.in";
+const EMAIL_REDIRECT_MODE = process.env.EMAIL_REDIRECT_MODE === "true";
+const EMAIL_ENABLED = process.env.EMAIL_ENABLED !== "false"; // default true
 
 // ── Lazy transporter creation (so we don't fail on startup if SMTP is down) ──
 let transporter: nodemailer.Transporter | null = null;
@@ -54,23 +60,67 @@ const approvalTemplate = compileTemplate("approval-request");
 const permissionLetterTemplate = compileTemplate("permission-letter-notification");
 const noDueClearanceTemplate = compileTemplate("no-due-clearance");
 
-export const sendEmail = async (to: string, subject: string, html: string): Promise<boolean> => {
+export const sendEmail = async (to: string, subject: string, html: string, type?: string): Promise<boolean> => {
+  // Check global email toggle
+  if (!EMAIL_ENABLED) {
+    console.log(`[EMAIL] Globally disabled. Skipping send to ${to}. Subject: ${subject}`);
+    return false;
+  }
+
+  // Check per-employee email suppression
+  try {
+    const emp = await prisma.employee.findFirst({ where: { email: to, receive_emails: false } });
+    if (emp) {
+      console.log(`[EMAIL] Employee ${emp.name} (${emp.employee_no}) has opted out of emails. Skipping send to ${to}.`);
+      return false;
+    }
+  } catch {
+    // If DB query fails, allow send through (fail open)
+    console.warn(`[EMAIL] Could not check employee suppression for ${to}, proceeding with send.`);
+  }
+
+  // Check per-type email config
+  if (type) {
+    try {
+      const config = await prisma.emailConfig.findUnique({ where: { type } });
+      if (config && !config.enabled) {
+        console.log(`[EMAIL] Type "${type}" disabled in config. Skipping send to ${to}.`);
+        return false;
+      }
+    } catch {
+      // If DB query fails, allow send through (fail open)
+      console.warn(`[EMAIL] Could not check config for type "${type}", proceeding with send.`);
+    }
+  }
+
   const t = getTransporter();
   if (!t) {
     console.log(`[EMAIL] Skipping send to ${to} (SMTP not configured). Subject: ${subject}`);
     return false;
   }
+
+  // Dev mode: redirect all emails to DEV_EMAIL
+  let actualRecipient = to;
+  if (EMAIL_REDIRECT_MODE) {
+    actualRecipient = DEV_EMAIL;
+    console.log(`[EMAIL] DEV MODE: Redirecting email intended for ${to} to ${DEV_EMAIL}`);
+    // Append original recipient info to subject for debugging
+    subject = `[DEV MODE → ${to}] ${subject}`;
+  }
+
   try {
     const info = await t.sendMail({
       from: `"VTMS Portal" <${SMTP_FROM}>`,
-      to,
+      to: actualRecipient,
       subject,
       html,
     });
-    console.log(`[EMAIL] Sent to ${to}: ${info.messageId}`);
+    console.log(
+      `[EMAIL] Sent to ${actualRecipient}${actualRecipient !== to ? ` (originally intended for ${to})` : ""}: ${info.messageId}`,
+    );
     return true;
   } catch (error: any) {
-    console.error(`[EMAIL] Error sending to ${to}:`, error?.code || error?.message || error);
+    console.error(`[EMAIL] Error sending to ${actualRecipient}:`, error?.code || error?.message || error);
     return false;
   }
 };

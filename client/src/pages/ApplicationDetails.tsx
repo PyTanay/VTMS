@@ -3,6 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import api from "../api";
 import FileUpload from "../components/FileUpload";
 import AuditTimeline from "../components/AuditTimeline";
+import CommentsSection from "../components/CommentsSection";
+import WorkflowTimeline from "../components/WorkflowTimeline";
 import { useAuth } from "../context/AuthContext";
 
 interface ApplicationDetail {
@@ -93,8 +95,6 @@ const ApplicationDetails: React.FC = () => {
   const [status, setStatus] = useState("");
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [activeTab, setActiveTab] = useState("info");
-
-  // Form fields
   const [scrutinyInChargeId, setScrutinyInChargeId] = useState("");
   const [approvedFrom, setApprovedFrom] = useState("");
   const [approvedTo, setApprovedTo] = useState("");
@@ -114,7 +114,7 @@ const ApplicationDetails: React.FC = () => {
   const canEdit = isAdmin || isSectionHead || isInCharge || isApprover;
 
   useEffect(() => {
-    const loadData = async () => {
+    (async () => {
       try {
         const [appRes, usersRes, depsRes] = await Promise.all([
           api.get(`/applications/${id}`),
@@ -131,23 +131,21 @@ const ApplicationDetails: React.FC = () => {
       } finally {
         setLoading(false);
       }
-    };
-    loadData();
+    })();
   }, [id]);
 
   useEffect(() => {
-    if (application) {
-      setApprovedFrom(application.approved_from?.slice(0, 10) || "");
-      setApprovedTo(application.approved_to?.slice(0, 10) || "");
-      setScrutinyDate(application.scrutiny_date?.slice(0, 10) || "");
-      setScrutinyRemarks(application.scrutiny_remarks || "");
-      setPermissionLetterRef(application.permission_letter_ref || "");
-      setPermissionLetterDate(application.permission_letter_date?.slice(0, 10) || "");
-      setPostingDepartmentId(application.posting_department?.id?.toString() || "");
-      setJoiningDate(application.joining_date?.slice(0, 10) || "");
-      setGatePassNo(application.gate_pass_no || "");
-      setGatePassValidUpTo(application.gate_pass_valid_up_to?.slice(0, 10) || "");
-    }
+    if (!application) return;
+    setApprovedFrom(application.approved_from?.slice(0, 10) || "");
+    setApprovedTo(application.approved_to?.slice(0, 10) || "");
+    setScrutinyDate(application.scrutiny_date?.slice(0, 10) || "");
+    setScrutinyRemarks(application.scrutiny_remarks || "");
+    setPermissionLetterRef(application.permission_letter_ref || "");
+    setPermissionLetterDate(application.permission_letter_date?.slice(0, 10) || "");
+    setPostingDepartmentId(application.posting_department?.id?.toString() || "");
+    setJoiningDate(application.joining_date?.slice(0, 10) || "");
+    setGatePassNo(application.gate_pass_no || "");
+    setGatePassValidUpTo(application.gate_pass_valid_up_to?.slice(0, 10) || "");
   }, [application]);
 
   const refresh = async () => {
@@ -259,9 +257,7 @@ const ApplicationDetails: React.FC = () => {
   const handleGatePassGenerate = async () => {
     setSaving(true);
     try {
-      const res = await api.post(`/gate-pass/${id}/generate`);
-      const pdfUrl = res.data.data?.pdfUrl;
-      if (pdfUrl) window.open(pdfUrl, "_blank");
+      await api.post(`/gate-pass/${id}/generate`);
       showSuccess("Gate pass generated!");
     } catch (err: any) {
       showError(err?.response?.data?.message || "Failed to generate gate pass");
@@ -309,10 +305,11 @@ const ApplicationDetails: React.FC = () => {
   const tabs = [
     { key: "info", label: "Details" },
     { key: "status", label: "Status & Workflow" },
+    { key: "comments", label: "Notes & Comments" },
     { key: "scrutiny", label: "Scrutiny" },
     { key: "permission", label: "Permission Letter" },
     { key: "documents", label: "Documents" },
-    { key: "joining", label: "Joining & Gate Pass" },
+    { key: "joining", label: "Joining / Gate Pass" },
     { key: "audit", label: "Audit Trail" },
   ];
 
@@ -346,7 +343,6 @@ const ApplicationDetails: React.FC = () => {
         </div>
       </div>
 
-      {/* Messages */}
       {error && (
         <div
           style={{
@@ -451,27 +447,34 @@ const ApplicationDetails: React.FC = () => {
       )}
 
       {/* Tab: Status */}
-      {activeTab === "status" && canEdit && (
-        <div className="panel">
-          <div className="panel-body">
-            <h3 style={{ margin: "0 0 16px", fontSize: "16px" }}>Status Management</h3>
-            <div style={{ display: "flex", gap: "12px", alignItems: "flex-end", flexWrap: "wrap" }}>
-              <div style={{ minWidth: "280px" }}>
-                <label className="form-label">Application Status</label>
-                <select className="form-input" value={status} onChange={(e) => setStatus(e.target.value)}>
-                  {Object.keys(statusStyles).map((s) => (
-                    <option key={s} value={s}>
-                      {s.replace(/_/g, " ")}
-                    </option>
-                  ))}
-                </select>
+      {activeTab === "status" && (
+        <>
+          {canEdit && (
+            <div className="panel">
+              <div className="panel-body">
+                <h3 style={{ margin: "0 0 16px", fontSize: "16px" }}>Status Management</h3>
+                <div style={{ display: "flex", gap: "12px", alignItems: "flex-end", flexWrap: "wrap" }}>
+                  <div style={{ minWidth: "280px" }}>
+                    <label className="form-label">Application Status</label>
+                    <select className="form-input" value={status} onChange={(e) => setStatus(e.target.value)}>
+                      {Object.keys(statusStyles).map((s) => (
+                        <option key={s} value={s}>
+                          {s.replace(/_/g, " ")}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button className="btn btn-primary" onClick={handleStatusSave} disabled={saving || !status}>
+                    {saving ? "Saving..." : "Update Status"}
+                  </button>
+                </div>
               </div>
-              <button className="btn btn-primary" onClick={handleStatusSave} disabled={saving || !status}>
-                {saving ? "Saving..." : "Update Status"}
-              </button>
             </div>
-          </div>
-        </div>
+          )}
+
+          {/* Workflow Timeline */}
+          <WorkflowTimeline applicationId={application.id} />
+        </>
       )}
 
       {/* Tab: Scrutiny */}
@@ -676,6 +679,9 @@ const ApplicationDetails: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Tab: Comments */}
+      {activeTab === "comments" && <CommentsSection applicationId={application.id} />}
     </div>
   );
 };

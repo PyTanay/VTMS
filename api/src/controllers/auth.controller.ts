@@ -25,12 +25,18 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
-    const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, process.env.JWT_SECRET || "secret", {
-      expiresIn: "24h",
-    });
+    const token = jwt.sign(
+      { id: user.id, username: user.username, role: user.role, employeeId: user.employeeId },
+      process.env.JWT_SECRET || "secret",
+      { expiresIn: "24h" },
+    );
 
     res.cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });
-    res.json({ success: true, token, user: { id: user.id, username: user.username, role: user.role } });
+    res.json({
+      success: true,
+      token,
+      user: { id: user.id, username: user.username, role: user.role, employeeId: user.employeeId },
+    });
   } catch (error) {
     next(error);
   }

@@ -1,4 +1,5 @@
-:root {
+:root,
+[data-theme="light"] {
   --primary-bg: #f4f6f9;
   --secondary-bg: #ffffff;
   --panel-bg: #ffffff;
@@ -11,10 +12,55 @@
   --nav-hover: #f1f5f9;
   --nav-active-bg: #e8f0fe;
   --nav-active-border: #1a73e8;
+  --input-bg: #ffffff;
+  --input-border: #e2e8f0;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.04);
   --sidebar-width: 260px;
   --header-height: 60px;
+  --success-bg: #dcfce7;
+  --success-text: #166534;
+  --warning-bg: #fef3c7;
+  --warning-text: #92400e;
+  --danger-bg: #fce4ec;
+  --danger-text: #c62828;
+  --info-bg: #e0f2fe;
+  --info-text: #075985;
+  --default-bg: #f1f5f9;
+  --default-text: #475569;
+  --table-hover: #f8fafc;
+}
+
+[data-theme="dark"] {
+  --primary-bg: #0f172a;
+  --secondary-bg: #1e293b;
+  --panel-bg: #1e293b;
+  --primary-accent: #60a5fa;
+  --secondary-accent: #3b82f6;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border-color: #334155;
+  --glass-border: #334155;
+  --nav-hover: #1e293b;
+  --nav-active-bg: #1e3a5f;
+  --nav-active-border: #60a5fa;
+  --input-bg: #1e293b;
+  --input-border: #475569;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --sidebar-width: 260px;
+  --header-height: 60px;
+  --success-bg: #064e3b;
+  --success-text: #6ee7b7;
+  --warning-bg: #78350f;
+  --warning-text: #fcd34d;
+  --danger-bg: #7f1d1d;
+  --danger-text: #fca5a5;
+  --info-bg: #0c4a6e;
+  --info-text: #7dd3fc;
+  --default-bg: #1e293b;
+  --default-text: #94a3b8;
+  --table-hover: #1e293b;
 }
 
 * {
@@ -511,4 +557,146 @@ table tbody tr:hover {
 .login-card p {
   color: #64748b;
   margin-bottom: 28px;
+}
+
+/* ── Mobile Responsive ── */
+@media (max-width: 1024px) {
+  .action-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .search-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .search-bar input {
+    min-width: 100% !important;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .chart-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Sidebar auto-collapse */
+  aside {
+    width: 64px !important;
+  }
+  aside nav a span {
+    display: none !important;
+  }
+  aside nav a {
+    justify-content: center !important;
+    padding: 10px 8px !important;
+  }
+  aside .section-label {
+    display: none !important;
+  }
+  main {
+    margin-left: 64px !important;
+  }
+
+  /* Tables horizontal scroll */
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .table-wrap table {
+    min-width: 700px;
+  }
+
+  /* Forms full-width */
+  .form-row,
+  .form-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .form-input,
+  input.form-input,
+  select.form-input {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .form-label {
+    margin-bottom: 4px;
+  }
+
+  /* Dashboard single column */
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Stats cards full width */
+  .stat-card {
+    padding: 16px;
+  }
+
+  /* Touch-friendly controls */
+  .btn,
+  button {
+    min-height: 40px;
+    min-width: 44px;
+  }
+  .btn-sm {
+    min-height: 36px;
+    min-width: 36px;
+  }
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Page adjustments */
+  .page-gap {
+    padding: 12px;
+  }
+  .panel-body {
+    padding: 16px;
+  }
+
+  /* Modal on mobile */
+  .modal-content {
+    width: 95% !important;
+    max-width: none !important;
+    margin: 10px auto;
+  }
+
+  /* Header */
+  header h1 {
+    font-size: 14px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .btn-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .btn-group .btn {
+    width: 100%;
+  }
+  .modal-content {
+    width: 100% !important;
+    border-radius: 0 !important;
+  }
+  .page-gap {
+    padding: 8px;
+  }
+  .panel-body {
+    padding: 12px;
+  }
+  header {
+    padding: 0 12px !important;
+  }
 }

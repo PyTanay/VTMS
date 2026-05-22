@@ -13,16 +13,22 @@ import { gatePassRouter } from "./routes/gatePass.routes";
 import { postingRouter } from "./routes/posting.routes";
 import { certificateRouter } from "./routes/certificate.routes";
 import { noDueRouter } from "./routes/noDue.routes";
+import { rolesRouter } from "./routes/roles.routes";
+import { emailConfigRouter } from "./routes/emailConfig.routes";
 import { reportRouter } from "./routes/report.routes";
 import { employeeRouter } from "./routes/employee.routes";
 import { userRouter } from "./routes/user.routes";
 import { samvadRouter } from "./routes/samvad.routes";
 import { uploadRouter } from "./routes/upload.routes";
 import { auditLogRouter } from "./routes/auditLog.routes";
+import { commentRouter } from "./routes/comment.routes";
+import { timelineRouter } from "./routes/timeline.routes";
+import { publicRouter } from "./routes/public.routes";
 import { errorHandler } from "./middleware/errorHandler";
 import auditLoggingMiddleware from "./middleware/auditLog";
 import { scheduleSamvadSync } from "./jobs/samvadSync";
 import { scheduleCleanup } from "./jobs/cleanupUploads";
+import { scheduleReminders } from "./jobs/reminder";
 import { startQueue } from "./jobs/queue";
 
 dotenv.config();
@@ -70,8 +76,13 @@ app.use("/api/reports", reportRouter);
 app.use("/api/employees", employeeRouter);
 app.use("/api/users", userRouter);
 app.use("/api/samvad", samvadRouter);
+app.use("/api/roles", rolesRouter);
+app.use("/api/email-config", emailConfigRouter);
 app.use("/api/uploads", uploadRouter);
 app.use("/api/audit-logs", auditLogRouter);
+app.use("/api/public", publicRouter);
+app.use("/api", commentRouter);
+app.use("/api", timelineRouter);
 
 // Health check
 app.get("/api/health", (_req, res) => res.json({ status: "ok", timestamp: new Date().toISOString() }));
@@ -85,6 +96,7 @@ if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {
     console.log(`⚡ VTMS API running on http://localhost:${PORT}`);
     scheduleSamvadSync(); // start nightly SAMVAD sync cron
+    scheduleReminders(); // start daily reminder email cron
     scheduleCleanup();
     startQueue();
   });

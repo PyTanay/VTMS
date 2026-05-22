@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { useThemeMode } from "../context/ThemeContext";
 import api from "../api";
 
 const Layout: React.FC = () => {
@@ -9,6 +10,7 @@ const Layout: React.FC = () => {
   const location = useLocation();
   const { user, logout, changePassword } = useAuth();
   const { addToast } = useToast();
+  const { mode, toggleTheme } = useThemeMode();
   const [collapsed, setCollapsed] = useState(false);
   const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({});
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -147,8 +149,17 @@ const Layout: React.FC = () => {
     { text: "Certificates", path: "/certificates", icon: ICONS.certificate, section: "Transactions", badge: "certificates" },
     { text: "No Due Clearance", path: "/no-due", icon: ICONS.nodue, section: "Transactions", badge: "nodue" },
     { text: "Reports", path: "/reports", icon: ICONS.reports, section: "Reports" },
+    { text: "Account", path: "/account", icon: ICONS.users, section: "Admin" },
     { text: "Audit Log", path: "/audit-log", icon: ICONS.audit, section: "Admin", roles: ["ADMIN", "TRAINING_CENTER_SECTION_HEAD"] },
     { text: "Users", path: "/users", icon: ICONS.users, section: "Admin", roles: ["ADMIN"] },
+    { text: "Role Mappings", path: "/role-mappings", icon: ICONS.users, section: "Admin", roles: ["ADMIN"] },
+    {
+      text: "Email Settings",
+      path: "/email-settings",
+      icon: ICONS.inbox,
+      section: "Admin",
+      roles: ["ADMIN"],
+    },
     {
       text: "SAMVAD Sync",
       path: "/samvad-sync",
@@ -333,20 +344,30 @@ const Layout: React.FC = () => {
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             {!collapsed && (
-              <button
-                onClick={() => setShowPasswordModal(true)}
-                className="btn btn-outline"
-                style={{ width: "100%", fontSize: "11px", padding: "6px", justifyContent: "center" }}
-              >
-                🔑 Password
-              </button>
+              <>
+                <button
+                  onClick={toggleTheme}
+                  className="btn btn-outline"
+                  style={{ width: "100%", fontSize: "11px", padding: "6px", justifyContent: "center" }}
+                  title={`Switch to ${mode === "light" ? "dark" : "light"} mode`}
+                >
+                  {mode === "light" ? "🌙 Dark Mode" : "☀️ Light Mode"}
+                </button>
+                <button
+                  onClick={() => setShowPasswordModal(true)}
+                  className="btn btn-outline"
+                  style={{ width: "100%", fontSize: "11px", padding: "6px", justifyContent: "center" }}
+                >
+                  🔑 Password
+                </button>
+              </>
             )}
             <button
               onClick={handleLogout}
               className="btn btn-outline"
               style={{ width: "100%", fontSize: collapsed ? "16px" : "11px", padding: "6px", justifyContent: "center" }}
             >
-              {collapsed ? "🚪" : "Logout"}
+              {collapsed ? "🚪" : "🚪 Logout"}
             </button>
           </div>
         </div>

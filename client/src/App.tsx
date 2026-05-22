@@ -24,12 +24,17 @@ import ScrutinyQueue from "./pages/ScrutinyQueue";
 import InChargeQueue from "./pages/InChargeQueue";
 import ReportAcknowledgement from "./pages/ReportAcknowledgement";
 import CertificateAcknowledgement from "./pages/CertificateAcknowledgement";
+import RoleMappingAdmin from "./pages/RoleMappingAdmin";
+import EmailNotificationSettings from "./pages/EmailNotificationSettings";
+import AccountSettings from "./pages/AccountSettings";
+import StudentPortal from "./pages/StudentPortal";
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/portal" element={<StudentPortal />} />
         <Route
           element={
             <ProtectedRoute>
@@ -53,12 +58,15 @@ function App() {
           <Route path="/no-due" element={<NoDueClearance />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/audit-log" element={<AuditLog />} />
+          <Route path="/role-mappings" element={<RoleMappingAdmin />} />
+          <Route path="/email-settings" element={<EmailNotificationSettings />} />
           <Route path="/my-tasks" element={<MyTasks />} />
           <Route path="/incharge-queue" element={<InChargeQueue />} />
           <Route path="/approval-inbox" element={<ApprovalInbox />} />
           <Route path="/scrutiny-queue" element={<ScrutinyQueue />} />
           <Route path="/report-acknowledgement" element={<ReportAcknowledgement />} />
           <Route path="/certificate-acknowledgement" element={<CertificateAcknowledgement />} />
+          <Route path="/account" element={<AccountSettings />} />
           <Route path="*" element={<Dashboard />} />
         </Route>
       </Routes>

@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { ApplicationStatus } from "@prisma/client";
 import prisma from "../prisma";
-import { authenticate } from "../middleware/auth";
+import { authenticate, AuthRequest } from "../middleware/auth";
 import validationService from "../services/validation.service";
 import numberingService from "../services/numbering.service";
+import { canTransition, getValidTransitions, transitionApplication } from "../services/workflow.service";
 
 export const applicationRouter = Router();
 applicationRouter.use(authenticate);
@@ -137,6 +138,28 @@ applicationRouter.get("/", async (req, res, next) => {
       ];
     }
 
+    // RBAC Scope Filtering
+    const authReq = req as AuthRequest;
+    if (authReq.user?.role === "RECOMMENDING_EMPLOYEE") {
+      // Recommending employees can only see applications they created
+      filters.recommending_employee_id = authReq.user.employeeId || undefined;
+    }
+    // TRAINING_CENTER_SECTION_HEAD (Department HOD): filter by their department
+    if (authReq.user?.role === "TRAINING_CENTER_SECTION_HEAD" && authReq.user.employeeId) {
+      const emp = await prisma.employee.findUnique({ where: { id: authReq.user.employeeId } });
+      if (emp?.department) {
+        // Filter by posting_department_id matching the HOD's department
+        const dept = await prisma.department.findFirst({
+          where: { department_name: { contains: emp.department, mode: "insensitive" } },
+        });
+        if (dept) {
+          filters.posting_department_id = dept.id;
+        }
+      }
+    }
+    // ADMIN, TRAINING_IN_CHARGE see all (no filter)
+    // ED_GM_APPROVER sees applications pending their approval
+
     const pageNumber = Math.max(Number(page), 1);
     const pageSize = Math.max(Number(perPage), 1);
 
@@ -211,6 +234,13 @@ applicationRouter.post("/", async (req: any, res, next) => {
     }
 
     const data = pickApplicationData(req.body);
+    const authReq = req as AuthRequest;
+
+    // Auto-set recommending_employee_id if user is a RECOMMENDING_EMPLOYEE
+    if (authReq.user?.role === "RECOMMENDING_EMPLOYEE" && authReq.user.employeeId) {
+      data.recommending_employee_id = authReq.user.employeeId;
+    }
+
     if (!data.application_no) {
       data.application_no = await numberingService.generateApplicationNo();
     }
@@ -269,7 +299,7 @@ applicationRouter.delete("/:id", async (req: any, res, next) => {
   }
 });
 
-applicationRouter.patch("/:id/status", async (req: any, res, next) => {
+applicationRouter.patch("/:id/status", async (req: AuthRequest, res, next) => {
   try {
     const id = Number(req.params.id);
     const { status } = req.body;
@@ -283,16 +313,14 @@ applicationRouter.patch("/:id/status", async (req: any, res, next) => {
       return res.status(404).json({ success: false, message: "Application not found" });
     }
 
-    const updated = await prisma.application.update({
-      where: { id },
-      data: { status },
-    });
+    // Use workflow engine to validate transition
+    const result = await transitionApplication(id, existing.status, status, req.user!.id, req.user!.role);
 
-    if (req.logAudit) {
-      await req.logAudit("STATUS_CHANGE", "application", id, { status: existing.status }, { status: updated.status });
+    if (!result.success) {
+      return res.status(400).json({ success: false, message: result.message });
     }
 
-    res.json({ success: true, data: updated });
+    res.json({ success: true, data: result.application });
   } catch (error) {
     next(error);
   }

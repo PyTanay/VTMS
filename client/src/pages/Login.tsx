@@ -27,7 +27,7 @@ const Login: React.FC = () => {
   return (
     <div className="page-shell">
       <div className="login-card" style={{ textAlign: "center" }}>
-        <img src="/gnfc-logo-animated.svg" alt="GNFC VTMS" style={{ maxWidth: "280px", marginBottom: "24px" }} />
+        <img src="/gnfc-logo.svg" alt="GNFC VTMS" style={{ maxWidth: "240px", marginBottom: "24px", borderRadius: "8px" }} />
 
         <h2 style={{ marginBottom: "4px" }}>Welcome to VTMS</h2>
         <p style={{ marginBottom: "28px" }}>Vocational Training Management System</p>

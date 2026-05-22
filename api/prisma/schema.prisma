@@ -53,11 +53,14 @@ model User {
   role         Role     @default(APPLICANT)
   employeeId   Int?     @unique
   employee     Employee? @relation(fields: [employeeId], references: [id])
+  active       Boolean  @default(true)
+  suspended    Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   auditLogs    AuditLog[]
   verifications DocumentVerification[] @relation("VerifiedBy")
   clearances   NoDueClearanceLine[] @relation("ClearedBy")
+  comments     Comment[]
 
   @@map("users")
 }
@@ -70,6 +73,7 @@ model Employee {
   email           String
   designation     String
   active          Boolean  @default(true)
+  receive_emails  Boolean  @default(true)
   user            User?
   applications    Application[] @relation("RecommendingEmployee")
   createdAt       DateTime @default(now())
@@ -243,6 +247,7 @@ model Application {
   postingLetterStudents    PostingLetterStudent[]
   certificates             Certificate[]
   noDueForm                NoDueForm?
+  comments                 Comment[]
 
   @@map("applications")
 }
@@ -476,4 +481,38 @@ model EmailLog {
   error_message String?
 
   @@map("email_logs")
+}
+
+model EmailConfig {
+  id             Int      @id @default(autoincrement())
+  type           String   @unique // "GLOBAL", "APPROVAL", "PERMISSION", "CERTIFICATE", "NODUE", "REMINDER"
+  enabled        Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
+
+  @@map("email_configs")
+}
+
+model RoleMapping {
+  id             Int      @id @default(autoincrement())
+  designation    String   @unique
+  role           Role
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("role_mappings")
+}
+
+model Comment {
+  id            Int         @id @default(autoincrement())
+  applicationId Int
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  userId        Int
+  user          User        @relation(fields: [userId], references: [id])
+  content       String
+  parentId      Int?        // For threaded replies (future use)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("comments")
 }
