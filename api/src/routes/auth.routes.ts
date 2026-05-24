@@ -112,3 +112,21 @@ authRouter.put("/me/password", authenticate, async (req: AuthRequest, res, next)
     next(error);
   }
 });
+
+// User: Update own email
+authRouter.put("/me/email", authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, message: "Valid email is required" });
+    }
+    const updated = await prisma.user.update({
+      where: { id: req.user?.id },
+      data: { email },
+      select: { id: true, email: true },
+    });
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    next(error);
+  }
+});

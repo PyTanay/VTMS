@@ -26,6 +26,7 @@ import { timelineRouter } from "./routes/timeline.routes";
 import { publicRouter } from "./routes/public.routes";
 import { errorHandler } from "./middleware/errorHandler";
 import auditLoggingMiddleware from "./middleware/auditLog";
+import { siteVisitMiddleware } from "./middleware/siteVisit";
 import { scheduleSamvadSync } from "./jobs/samvadSync";
 import { scheduleCleanup } from "./jobs/cleanupUploads";
 import { scheduleReminders } from "./jobs/reminder";
@@ -48,6 +49,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(auditLoggingMiddleware);
+app.use(siteVisitMiddleware);
 app.use(
   "/uploads",
   express.static("uploads", {

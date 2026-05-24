@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import api from "../api";
 
 interface Employee {
@@ -32,7 +33,9 @@ const EmployeeSearch: React.FC<Props> = ({
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [recentEmployees, setRecentEmployees] = useState<Employee[]>([]);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Load recent employees on mount
   useEffect(() => {
@@ -55,6 +58,20 @@ const EmployeeSearch: React.FC<Props> = ({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  // Calculate dropdown position when showing
+  useEffect(() => {
+    if (showResults && inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      setDropdownStyle({
+        position: "fixed",
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+        zIndex: 9999,
+      });
+    }
+  }, [showResults, results]);
 
   const search = useCallback(
     async (q: string) => {
@@ -104,9 +121,10 @@ const EmployeeSearch: React.FC<Props> = ({
   };
 
   return (
-    <div ref={wrapperRef} style={{ position: "relative" }}>
+    <div ref={wrapperRef} style={{ position: "relative", zIndex: 1200, width: "100%" }}>
       <label className="form-label">{label}</label>
       <input
+        ref={inputRef}
         className="form-input"
         value={query}
         onChange={(e) => {
@@ -126,51 +144,53 @@ const EmployeeSearch: React.FC<Props> = ({
           ✅ {selectedEmployee.name} — {selectedEmployee.designation} ({selectedEmployee.department})
         </div>
       )}
-      {showResults && results.length > 0 && (
-        <div
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            right: 0,
-            background: "var(--secondary-bg)",
-            border: "1px solid var(--border-color)",
-            borderRadius: "8px",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-            zIndex: 1000,
-            maxHeight: "280px",
-            overflow: "auto",
-            marginTop: "4px",
-          }}
-        >
-          {results.map((emp) => {
-            const isMatch = query && initialsMatch(emp, query);
-            return (
-              <div
-                key={emp.id}
-                style={{
-                  padding: "10px 14px",
-                  cursor: "pointer",
-                  borderBottom: "1px solid var(--border-color)",
-                  background: isMatch ? "var(--nav-hover)" : "transparent",
-                }}
-                onClick={() => handleSelect(emp)}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--nav-hover)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              >
-                <div style={{ fontWeight: 500, fontSize: "14px" }}>{emp.name}</div>
-                <div style={{ fontSize: "12px", color: "var(--text-secondary)", display: "flex", gap: "12px", marginTop: "2px" }}>
-                  <span>
-                    EC: <strong>{emp.employee_no}</strong>
-                  </span>
-                  <span>{emp.designation}</span>
-                  <span>{emp.department}</span>
+      {showResults &&
+        results.length > 0 &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: dropdownStyle.top,
+              left: dropdownStyle.left,
+              width: dropdownStyle.width,
+              background: "var(--secondary-bg)",
+              border: "1px solid var(--border-color)",
+              borderRadius: "8px",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+              zIndex: 9999,
+              maxHeight: "280px",
+              overflow: "auto",
+            }}
+          >
+            {results.map((emp) => {
+              const isMatch = query && initialsMatch(emp, query);
+              return (
+                <div
+                  key={emp.id}
+                  style={{
+                    padding: "10px 14px",
+                    cursor: "pointer",
+                    borderBottom: "1px solid var(--border-color)",
+                    background: isMatch ? "var(--nav-hover)" : "transparent",
+                  }}
+                  onClick={() => handleSelect(emp)}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--nav-hover)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <div style={{ fontWeight: 500, fontSize: "14px" }}>{emp.name}</div>
+                  <div style={{ fontSize: "12px", color: "var(--text-secondary)", display: "flex", gap: "12px", marginTop: "2px" }}>
+                    <span>
+                      EC: <strong>{emp.employee_no}</strong>
+                    </span>
+                    <span>{emp.designation}</span>
+                    <span>{emp.department}</span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };

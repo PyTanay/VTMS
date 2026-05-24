@@ -1,6 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
 import api from "../api";
+
+interface Employee {
+  id: number;
+  employee_no: string;
+  name: string;
+  designation: string;
+  department: string;
+}
 
 interface User {
   id: number;
@@ -8,6 +16,7 @@ interface User {
   role: string;
   email?: string;
   employeeId?: number | null;
+  employee?: Employee | null;
 }
 
 interface AuthContextType {
@@ -16,6 +25,8 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
+  updateEmail: (email: string) => Promise<boolean>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -24,6 +35,8 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   logout: async () => {},
   changePassword: async () => false,
+  updateEmail: async () => false,
+  refreshUser: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -81,7 +94,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  return <AuthContext.Provider value={{ user, loading, login, logout, changePassword }}>{children}</AuthContext.Provider>;
+  const updateEmail = async (email: string): Promise<boolean> => {
+    try {
+      const res = await api.put("/auth/me/email", { email });
+      if (res.data?.success) {
+        setUser((prev) => (prev ? { ...prev, email } : prev));
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      throw new Error(err?.response?.data?.message || "Failed to update email");
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, logout, changePassword, updateEmail, refreshUser: fetchUser }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => useContext(AuthContext);

@@ -76,3 +76,4 @@ masterRouter.get("/departments/:id", masterController.getDepartmentById);
 masterRouter.post("/departments", authorize(["ADMIN"]), masterController.createDepartment);
 masterRouter.put("/departments/:id", authorize(["ADMIN"]), masterController.updateDepartment);
 masterRouter.delete("/departments/:id", authorize(["ADMIN"]), masterController.deleteDepartment);
+masterRouter.post("/departments/seed", authorize(["ADMIN"]), masterController.seedDepartmentsFromEmployees);

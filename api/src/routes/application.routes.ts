@@ -1,4 +1,4 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import { ApplicationStatus } from "@prisma/client";
 import prisma from "../prisma";
 import { authenticate, AuthRequest } from "../middleware/auth";
@@ -121,14 +121,68 @@ applicationRouter.get("/stats", async (req, res, next) => {
   }
 });
 
+// Get site visit statistics
+applicationRouter.get("/site-stats", async (req, res, next) => {
+  try {
+    // Get total visits (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const totalVisits = await (prisma as any).siteVisit.count({
+      where: {
+        createdAt: { gte: thirtyDaysAgo },
+      },
+    });
+
+    // Get unique visitors (distinct IP addresses in last 24 hours)
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+    const uniqueVisitors = await (prisma as any).siteVisit.groupBy({
+      by: ["ipAddress"],
+      where: {
+        createdAt: { gte: oneDayAgo },
+        ipAddress: { not: null },
+      },
+    });
+
+    // Get concurrent users (users who visited in last 5 minutes)
+    const fiveMinutesAgo = new Date();
+    fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
+
+    const concurrentUsers = await (prisma as any).siteVisit.groupBy({
+      by: ["userId"],
+      where: {
+        createdAt: { gte: fiveMinutesAgo },
+        userId: { not: null },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        totalVisits,
+        concurrentUsers: concurrentUsers.length,
+        uniqueVisitorsToday: uniqueVisitors.length,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 applicationRouter.get("/", async (req, res, next) => {
   try {
-    const { status, applicantType, collegeId, page = "1", perPage = "20", search } = req.query;
+    const { status, applicantType, collegeId, page = "1", perPage = "20", search, includeArchived } = req.query;
     const filters: any = {};
 
     if (status) filters.status = status;
     if (applicantType) filters.applicant_type = applicantType;
     if (collegeId) filters.collegeId = Number(collegeId);
+    // By default, exclude archived applications unless includeArchived is true
+    if (includeArchived !== "true") {
+      filters.archived = false;
+    }
     if (search) {
       filters.OR = [
         { student_name: { contains: String(search), mode: "insensitive" } },
@@ -157,7 +211,11 @@ applicationRouter.get("/", async (req, res, next) => {
         }
       }
     }
-    // ADMIN, TRAINING_IN_CHARGE see all (no filter)
+    // TRAINING_IN_CHARGE: filter by applications assigned to them
+    if (authReq.user?.role === "TRAINING_IN_CHARGE" && authReq.user.employeeId) {
+      filters.scrutiny_in_charge_id = authReq.user.employeeId;
+    }
+    // ADMIN sees all (no filter)
     // ED_GM_APPROVER sees applications pending their approval
 
     const pageNumber = Math.max(Number(page), 1);
@@ -173,8 +231,8 @@ applicationRouter.get("/", async (req, res, next) => {
           category: true,
           branch: true,
           college: true,
-          recommending_employee: true,
-          posting_department: true,
+          employee: true,
+          department: true,
         },
       }),
       prisma.application.count({ where: filters }),
@@ -194,9 +252,9 @@ applicationRouter.get("/:id", async (req, res, next) => {
         category: true,
         branch: true,
         college: true,
-        recommending_employee: true,
-        posting_department: true,
-        verifications: true,
+        employee: true,
+        department: true,
+        document_verifications: true,
         biodata: {
           include: {
             academics: true,
@@ -299,6 +357,54 @@ applicationRouter.delete("/:id", async (req: any, res, next) => {
   }
 });
 
+// Archive an application (soft delete - remains visible with archived tag)
+applicationRouter.patch("/:id/archive", async (req: any, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const existing = await prisma.application.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Application not found" });
+    }
+
+    const updated = await prisma.application.update({
+      where: { id },
+      data: { archived: true },
+    });
+
+    if (req.logAudit) {
+      await req.logAudit("ARCHIVE", "application", id, existing, updated);
+    }
+
+    res.json({ success: true, data: updated, message: "Application archived" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Unarchive an application
+applicationRouter.patch("/:id/unarchive", async (req: any, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const existing = await prisma.application.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Application not found" });
+    }
+
+    const updated = await prisma.application.update({
+      where: { id },
+      data: { archived: false },
+    });
+
+    if (req.logAudit) {
+      await req.logAudit("UNARCHIVE", "application", id, existing, updated);
+    }
+
+    res.json({ success: true, data: updated, message: "Application unarchived" });
+  } catch (error) {
+    next(error);
+  }
+});
+
 applicationRouter.patch("/:id/status", async (req: AuthRequest, res, next) => {
   try {
     const id = Number(req.params.id);
@@ -326,21 +432,32 @@ applicationRouter.patch("/:id/status", async (req: AuthRequest, res, next) => {
   }
 });
 
-applicationRouter.patch("/:id/scrutinize", async (req, res, next) => {
+applicationRouter.patch("/:id/scrutinize", async (req: AuthRequest, res, next) => {
   try {
     const id = Number(req.params.id);
     const { scrutiny_in_charge_id, approved_from, approved_to, scrutiny_date, scrutiny_remarks, status } = req.body;
-    const data: any = {};
 
-    if (scrutiny_in_charge_id !== undefined) data.scrutiny_in_charge_id = Number(scrutiny_in_charge_id);
-    if (approved_from !== undefined) data.approved_from = new Date(approved_from);
-    if (approved_to !== undefined) data.approved_to = new Date(approved_to);
-    if (scrutiny_date !== undefined) data.scrutiny_date = new Date(scrutiny_date);
-    if (scrutiny_remarks !== undefined) data.scrutiny_remarks = scrutiny_remarks;
-    data.status = status || ApplicationStatus.SCRUTINIZED;
+    const existing = await prisma.application.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Application not found" });
+    }
 
-    const updated = await prisma.application.update({ where: { id }, data });
-    res.json({ success: true, data: updated });
+    const toStatus = status || ApplicationStatus.SCRUTINIZED;
+
+    // Use workflow engine to validate transition and log audit
+    const result = await transitionApplication(id, existing.status, toStatus, req.user!.id, req.user!.role, {
+      scrutiny_in_charge_id: scrutiny_in_charge_id ? Number(scrutiny_in_charge_id) : undefined,
+      approved_from: approved_from ? new Date(approved_from) : undefined,
+      approved_to: approved_to ? new Date(approved_to) : undefined,
+      scrutiny_date: scrutiny_date ? new Date(scrutiny_date) : undefined,
+      scrutiny_remarks,
+    });
+
+    if (!result.success) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+
+    res.json({ success: true, data: result.application });
   } catch (error: any) {
     console.error("Scrutiny error:", error);
     res.status(400).json({ success: false, message: `Scrutiny failed: ${error.message || "Unknown error"}` });
@@ -363,38 +480,58 @@ const toDateOrUndefined = (val: any): Date | undefined => {
   return undefined;
 };
 
-applicationRouter.patch("/:id/permission-letter", async (req, res, next) => {
+applicationRouter.patch("/:id/permission-letter", async (req: AuthRequest, res, next) => {
   try {
     const id = Number(req.params.id);
     const { permission_letter_ref, permission_letter_date, posting_department_id, status } = req.body;
-    const data: any = {};
 
-    if (permission_letter_ref !== undefined) data.permission_letter_ref = permission_letter_ref;
-    if (permission_letter_date !== undefined) data.permission_letter_date = toDateOrUndefined(permission_letter_date);
-    if (posting_department_id !== undefined) data.posting_department_id = Number(posting_department_id);
-    data.status = status || ApplicationStatus.PERMISSION_LETTER_SENT;
+    const existing = await prisma.application.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Application not found" });
+    }
 
-    const updated = await prisma.application.update({ where: { id }, data });
-    res.json({ success: true, data: updated });
+    const toStatus = status || ApplicationStatus.PERMISSION_LETTER_SENT;
+
+    const result = await transitionApplication(id, existing.status, toStatus, req.user!.id, req.user!.role, {
+      permission_letter_ref,
+      permission_letter_date: toDateOrUndefined(permission_letter_date),
+      posting_department_id: posting_department_id ? Number(posting_department_id) : undefined,
+    });
+
+    if (!result.success) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+
+    res.json({ success: true, data: result.application });
   } catch (error: any) {
     console.error("Permission-letter error:", error);
     res.status(400).json({ success: false, message: `Failed: ${error.message || "Unknown error"}` });
   }
 });
 
-applicationRouter.patch("/:id/join", async (req, res, next) => {
+applicationRouter.patch("/:id/join", async (req: AuthRequest, res, next) => {
   try {
     const id = Number(req.params.id);
     const { joining_date, gate_pass_no, gate_pass_valid_up_to, status } = req.body;
-    const data: any = {};
 
-    if (joining_date !== undefined) data.joining_date = toDateOrUndefined(joining_date);
-    if (gate_pass_no !== undefined) data.gate_pass_no = gate_pass_no;
-    if (gate_pass_valid_up_to !== undefined) data.gate_pass_valid_up_to = toDateOrUndefined(gate_pass_valid_up_to);
-    data.status = status || ApplicationStatus.JOINING_PENDING;
+    const existing = await prisma.application.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Application not found" });
+    }
 
-    const updated = await prisma.application.update({ where: { id }, data });
-    res.json({ success: true, data: updated });
+    const toStatus = status || ApplicationStatus.JOINING_PENDING;
+
+    const result = await transitionApplication(id, existing.status, toStatus, req.user!.id, req.user!.role, {
+      joining_date: toDateOrUndefined(joining_date),
+      gate_pass_no,
+      gate_pass_valid_up_to: toDateOrUndefined(gate_pass_valid_up_to),
+    });
+
+    if (!result.success) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+
+    res.json({ success: true, data: result.application });
   } catch (error: any) {
     console.error("Join error:", error);
     res.status(400).json({ success: false, message: `Failed: ${error.message || "Unknown error"}` });

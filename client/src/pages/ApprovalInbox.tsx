@@ -6,7 +6,7 @@ import { useToast } from "../context/ToastContext";
 
 const ApprovalInbox: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const {} = useAuth();
   const { addToast } = useToast();
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

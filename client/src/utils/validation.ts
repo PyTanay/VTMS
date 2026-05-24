@@ -130,7 +130,7 @@ export const validateApplicationForm = (data: any): ValidationResult => {
     ["requested_to", "Requested To Date", (v) => required(v, "requested_to", "Requested To Date")],
   ];
 
-  for (const [field, label, fn] of fields) {
+  for (const [field, , fn] of fields) {
     const err = fn(data[field]);
     if (err) errors.push(err);
   }

@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 import api from "../api";
 import { useAuth } from "../context/AuthContext";
 
@@ -16,7 +15,6 @@ interface CertItem {
 }
 
 const CertificateAcknowledgement: React.FC = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [certs, setCerts] = useState<CertItem[]>([]);
   const [loading, setLoading] = useState(true);

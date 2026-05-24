@@ -10,6 +10,15 @@ interface RoleMapping {
   description: string | null;
 }
 
+interface RoleMappingLog {
+  id: number;
+  action: string;
+  designation?: string;
+  role?: string;
+  result?: string;
+  createdAt: string;
+}
+
 const ROLES = ["ADMIN", "RECOMMENDING_EMPLOYEE", "TRAINING_CENTER_SECTION_HEAD", "TRAINING_IN_CHARGE", "ED_GM_APPROVER"];
 
 const RoleMappingAdmin: React.FC = () => {
@@ -25,6 +34,13 @@ const RoleMappingAdmin: React.FC = () => {
   const [applying, setApplying] = useState(false);
   const [applyResult, setApplyResult] = useState<any>(null);
   const [confirmApply, setConfirmApply] = useState(false);
+  const [designations, setDesignations] = useState<string[]>([]);
+  const [loadingDesignations, setLoadingDesignations] = useState(false);
+  const [logs, setLogs] = useState<RoleMappingLog[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
+  const [statuses, setStatuses] = useState<string[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
 
   const loadMappings = async () => {
     setLoading(true);
@@ -39,8 +55,43 @@ const RoleMappingAdmin: React.FC = () => {
     }
   };
 
+  const loadDesignations = async () => {
+    setLoadingDesignations(true);
+    try {
+      const res = await api.get("/employees/meta/designations");
+      setDesignations(res.data.data || []);
+    } catch {
+      // silently fail
+    } finally {
+      setLoadingDesignations(false);
+    }
+  };
+
+  const loadStatuses = async () => {
+    try {
+      const res = await api.get("/roles/statuses");
+      setStatuses(res.data.data || []);
+    } catch {
+      // silently fail
+    }
+  };
+
+  const loadLogs = async () => {
+    setLoadingLogs(true);
+    try {
+      const res = await api.get("/roles/logs");
+      setLogs(res.data.data || []);
+    } catch {
+      addToast("error", "Failed to load logs");
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
   useEffect(() => {
     loadMappings();
+    loadDesignations();
+    loadStatuses();
   }, []);
 
   const openCreate = () => {
@@ -91,9 +142,10 @@ const RoleMappingAdmin: React.FC = () => {
     setApplying(true);
     setApplyResult(null);
     try {
-      const res = await api.post("/roles/apply");
+      const res = await api.post("/roles/apply", { status: selectedStatus || undefined });
       setApplyResult(res.data.data);
       addToast("success", "Apply completed");
+      await loadLogs();
     } catch {
       addToast("error", "Failed to apply");
     } finally {
@@ -113,6 +165,9 @@ const RoleMappingAdmin: React.FC = () => {
               </p>
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
+              <button className="btn btn-outline" onClick={() => setShowLogs(true)} disabled={loadingLogs}>
+                📋 View Logs
+              </button>
               <button className="btn btn-outline" onClick={() => setConfirmApply(true)} disabled={applying}>
                 {applying ? "Applying..." : "🔄 Apply to Employees"}
               </button>
@@ -120,6 +175,24 @@ const RoleMappingAdmin: React.FC = () => {
                 + Add Mapping
               </button>
             </div>
+          </div>
+
+          {/* Status Filter for Apply */}
+          <div style={{ marginBottom: "16px", display: "flex", gap: "12px", alignItems: "center" }}>
+            <label style={{ fontSize: "14px", color: "var(--text-secondary)" }}>Filter by Status:</label>
+            <select
+              className="form-input"
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              style={{ width: "200px" }}
+            >
+              <option value="">All Statuses</option>
+              {statuses.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
           </div>
 
           {applyResult && (
@@ -216,6 +289,71 @@ const RoleMappingAdmin: React.FC = () => {
           This will create user accounts for unmatched employees whose designations have matching role mappings. Default password will
           be <strong>changeme123</strong>. Continue?
         </p>
+        {selectedStatus && (
+          <p style={{ marginTop: "8px", color: "var(--text-secondary)" }}>
+            <strong>Status filter:</strong> {selectedStatus}
+          </p>
+        )}
+      </Modal>
+
+      {/* Logs Modal */}
+      <Modal
+        open={showLogs}
+        title="Role Mapping Logs"
+        onClose={() => setShowLogs(false)}
+        actions={
+          <button className="btn btn-outline" onClick={() => setShowLogs(false)}>
+            Close
+          </button>
+        }
+      >
+        {loadingLogs ? (
+          <p style={{ color: "var(--text-secondary)" }}>Loading logs...</p>
+        ) : logs.length === 0 ? (
+          <p style={{ color: "var(--text-secondary)" }}>No logs found.</p>
+        ) : (
+          <div className="table-wrap" style={{ maxHeight: "400px", overflowY: "auto" }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>Result</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((log) => (
+                  <tr key={log.id}>
+                    <td>
+                      <span className="badge badge-info">{log.action}</span>
+                    </td>
+                    <td style={{ fontSize: "12px" }}>
+                      {log.result ? (
+                        <details>
+                          <summary style={{ cursor: "pointer", color: "var(--primary-accent)" }}>View result</summary>
+                          <pre
+                            style={{
+                              fontSize: "11px",
+                              marginTop: "4px",
+                              padding: "8px",
+                              background: "var(--nav-hover)",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            {JSON.stringify(JSON.parse(log.result), null, 2)}
+                          </pre>
+                        </details>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{new Date(log.createdAt).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Modal>
 
       {/* Create/Edit Modal */}
@@ -237,14 +375,31 @@ const RoleMappingAdmin: React.FC = () => {
         <div style={{ display: "grid", gap: "12px" }}>
           <div>
             <label className="form-label">Designation *</label>
-            <input
-              className="form-input"
-              value={formDesignation}
-              onChange={(e) => setFormDesignation(e.target.value)}
-              placeholder="e.g. Manager, HR"
-              disabled={!!editing}
-              style={{ width: "100%" }}
-            />
+            {editing ? (
+              <input
+                className="form-input"
+                value={formDesignation}
+                onChange={(e) => setFormDesignation(e.target.value)}
+                placeholder="e.g. Manager, HR"
+                disabled={!!editing}
+                style={{ width: "100%" }}
+              />
+            ) : (
+              <select
+                className="form-input"
+                value={formDesignation}
+                onChange={(e) => setFormDesignation(e.target.value)}
+                style={{ width: "100%" }}
+                disabled={loadingDesignations}
+              >
+                <option value="">-- Select designation --</option>
+                {designations.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           <div>
             <label className="form-label">System Role *</label>

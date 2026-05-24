@@ -16,6 +16,36 @@ rolesRouter.get("/", async (_req: AuthRequest, res, next) => {
   }
 });
 
+// Get unique designations for dropdown
+rolesRouter.get("/designations", async (_req: AuthRequest, res, next) => {
+  try {
+    const designations = await prisma.employee.findMany({
+      where: { active: true },
+      select: { designation: true },
+      distinct: ["designation"],
+      orderBy: { designation: "asc" },
+    });
+    res.json({ success: true, data: designations.map((d) => d.designation) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get unique employee statuses for filter
+rolesRouter.get("/statuses", async (_req: AuthRequest, res, next) => {
+  try {
+    const statuses = await prisma.employee.findMany({
+      where: { status: { not: null } },
+      select: { status: true },
+      distinct: ["status"],
+      orderBy: { status: "asc" },
+    });
+    res.json({ success: true, data: statuses.map((s) => s.status) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Create role mapping
 rolesRouter.post("/", async (req: AuthRequest, res, next) => {
   try {
@@ -65,12 +95,17 @@ rolesRouter.delete("/:id", async (req: AuthRequest, res, next) => {
 // Apply designation → role
 rolesRouter.post("/apply", async (req: AuthRequest, res, next) => {
   try {
+    const { status } = req.body;
     const results = { matched: 0, unmatched: 0, skipped: 0, errors: 0 };
     const mappings = await prisma.roleMapping.findMany();
 
     const employees = await prisma.employee.findMany({
-      where: { active: true, user: null },
-      select: { id: true, designation: true, email: true },
+      where: {
+        active: true,
+        user: null,
+        ...(status ? { status } : {}),
+      },
+      select: { id: true, designation: true, email: true, status: true },
     });
 
     for (const emp of employees) {
@@ -97,6 +132,7 @@ rolesRouter.post("/apply", async (req: AuthRequest, res, next) => {
             password: defaultPassword, // In production, hash this
             role: mapping.role,
             employeeId: emp.id,
+            designation: emp.designation,
           },
         });
         results.matched++;
@@ -105,7 +141,29 @@ rolesRouter.post("/apply", async (req: AuthRequest, res, next) => {
       }
     }
 
+    // Log the apply operation
+    await (prisma as any).roleMappingLog.create({
+      data: {
+        action: "APPLY",
+        result: JSON.stringify(results),
+        userId: req.user?.id,
+      },
+    });
+
     res.json({ success: true, data: results });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get role mapping logs
+rolesRouter.get("/logs", async (_req: AuthRequest, res, next) => {
+  try {
+    const logs = await (prisma as any).roleMappingLog.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+    res.json({ success: true, data: logs });
   } catch (error) {
     next(error);
   }

@@ -1,11 +1,11 @@
-import { Router } from "express";
-import { authenticate } from "../middleware/auth";
+﻿import { Router } from "express";
+import { authenticate, AuthRequest } from "../middleware/auth";
 import prisma from "../prisma";
 
 export const reportRouter = Router();
 reportRouter.use(authenticate);
 
-// ─── Helper: parse from/to query params ───
+// â”€â”€â”€ Helper: parse from/to query params â”€â”€â”€
 const dateFilter = (from?: string, to?: string): { gte?: Date; lte?: Date } => {
   const filter: { gte?: Date; lte?: Date } = {};
   if (from) filter.gte = new Date(from);
@@ -13,7 +13,35 @@ const dateFilter = (from?: string, to?: string): { gte?: Date; lte?: Date } => {
   return filter;
 };
 
-// ─── Helper: CSV escape ───
+// â”€â”€â”€ Helper: Get department filter for HOD, Training In-Charge, and Recommending Employee â”€â”€â”€
+const getHodDepartmentFilter = async (req: AuthRequest) => {
+  const filter: any = {};
+
+  // TRAINING_CENTER_SECTION_HEAD (HOD): filter by their department
+  if (req.user?.role === "TRAINING_CENTER_SECTION_HEAD" && req.user.employeeId) {
+    const emp = await prisma.employee.findUnique({ where: { id: req.user.employeeId } });
+    if (emp?.department) {
+      const dept = await prisma.department.findFirst({
+        where: { department_name: { contains: emp.department, mode: "insensitive" } },
+      });
+      if (dept) {
+        filter.posting_department_id = dept.id;
+      }
+    }
+  }
+  // TRAINING_IN_CHARGE: filter by applications assigned to them
+  else if (req.user?.role === "TRAINING_IN_CHARGE" && req.user.employeeId) {
+    filter.scrutiny_in_charge_id = req.user.employeeId;
+  }
+  // employee: filter by applications they created
+  else if (req.user?.role === "employee" && req.user.employeeId) {
+    filter.employee_id = req.user.employeeId;
+  }
+
+  return filter;
+};
+
+// â”€â”€â”€ Helper: CSV escape â”€â”€â”€
 const csvCell = (val: any): string => {
   const str = val == null ? "" : String(val);
   return str.includes(",") || str.includes('"') || str.includes("\n") ? `"${str.replace(/"/g, '""')}"` : str;
@@ -27,15 +55,26 @@ const asCsv = (rows: Record<string, any>[], columns: string[]): string => {
 
 const sendResponse = (res: any, rows: Record<string, any>[], columns: string[], label: string) => {
   const format = (res.req as any).query.format;
+  // Filter out rows where ALL numeric/count values are 0 or empty
+  const filteredRows = rows.filter((row) => {
+    const values = Object.values(row);
+    // Keep row if at least one value is non-zero and non-empty
+    return values.some((v) => {
+      if (v === undefined || v === null || v === "") return false;
+      if (typeof v === "number") return v !== 0;
+      if (typeof v === "string" && !isNaN(Number(v))) return Number(v) !== 0;
+      return true; // non-numeric, non-empty values are meaningful
+    });
+  });
   if (format === "csv") {
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", `attachment; filename="${label.replace(/\s+/g, "_")}.csv"`);
-    return res.send(asCsv(rows, columns));
+    return res.send(asCsv(filteredRows, columns));
   }
-  res.json({ success: true, data: rows, total: rows.length });
+  res.json({ success: true, data: filteredRows, total: filteredRows.length });
 };
 
-// ─── Report index ───
+// â”€â”€â”€ Report index â”€â”€â”€
 reportRouter.get("/", async (_req, res) => {
   res.json({
     success: true,
@@ -57,12 +96,16 @@ reportRouter.get("/", async (_req, res) => {
   });
 });
 
-// ─── 1. Application Register ───
+// â”€â”€â”€ 1. Application Register â”€â”€â”€
 reportRouter.get("/application-register", async (req, res, next) => {
   try {
     const { from, to } = req.query as any;
+    const hodFilter = await getHodDepartmentFilter(req as AuthRequest);
     const apps = await prisma.application.findMany({
-      where: { application_date: { ...dateFilter(from, to) } },
+      where: {
+        application_date: { ...dateFilter(from, to) },
+        ...hodFilter,
+      },
       include: { category: true, branch: true, college: true },
       orderBy: { application_date: "desc" },
     });
@@ -86,14 +129,16 @@ reportRouter.get("/application-register", async (req, res, next) => {
   }
 });
 
-// ─── 2. Approved Applications ───
+// â”€â”€â”€ 2. Approved Applications â”€â”€â”€
 reportRouter.get("/approved", async (req, res, next) => {
   try {
     const { from, to } = req.query as any;
+    const hodFilter = await getHodDepartmentFilter(req as AuthRequest);
     const apps = await prisma.application.findMany({
       where: {
         status: { in: ["APPROVED", "RECEIVED_BY_TC", "SCRUTINIZED", "PERMISSION_LETTER_SENT"] },
         application_date: { ...dateFilter(from, to) },
+        ...hodFilter,
       },
       include: { category: true, college: true },
     });
@@ -111,14 +156,16 @@ reportRouter.get("/approved", async (req, res, next) => {
   }
 });
 
-// ─── 3. Permissions Given ───
+// â”€â”€â”€ 3. Permissions Given â”€â”€â”€
 reportRouter.get("/permissions", async (req, res, next) => {
   try {
     const { from, to } = req.query as any;
+    const hodFilter = await getHodDepartmentFilter(req as AuthRequest);
     const apps = await prisma.application.findMany({
       where: {
         permission_letter_ref: { not: null },
         permission_letter_date: { ...dateFilter(from, to) },
+        ...hodFilter,
       },
     });
     const rows = apps.map((a) => ({
@@ -133,16 +180,27 @@ reportRouter.get("/permissions", async (req, res, next) => {
   }
 });
 
-// ─── 4. Branch Wise ───
+// â”€â”€â”€ 4. Branch Wise â”€â”€â”€
 reportRouter.get("/branch-wise", async (req, res, next) => {
   try {
     const { from, to } = req.query as any;
-    const branches = await prisma.branch.findMany();
+    const hodFilter = await getHodDepartmentFilter(req as AuthRequest);
+    // Only fetch branches that have at least one application in the date range
+    const branches = await prisma.branch.findMany({
+      where: {
+        applications: {
+          some: {
+            application_date: { ...dateFilter(from, to) },
+            ...hodFilter,
+          },
+        },
+      },
+    });
     const report = await Promise.all(
       branches.map(async (b) => ({
         Branch: b.branch_name,
         Count: await prisma.application.count({
-          where: { branchId: b.id, application_date: { ...dateFilter(from, to) } },
+          where: { branchId: b.id, application_date: { ...dateFilter(from, to) }, ...hodFilter },
         }),
       })),
     );
@@ -152,16 +210,27 @@ reportRouter.get("/branch-wise", async (req, res, next) => {
   }
 });
 
-// ─── 5. College Wise ───
+// â”€â”€â”€ 5. College Wise â”€â”€â”€
 reportRouter.get("/college-wise", async (req, res, next) => {
   try {
     const { from, to } = req.query as any;
-    const colleges = await prisma.college.findMany();
+    const hodFilter = await getHodDepartmentFilter(req as AuthRequest);
+    // Only fetch colleges that have at least one application in the date range
+    const collegesWithApps = await prisma.college.findMany({
+      where: {
+        applications: {
+          some: {
+            application_date: { ...dateFilter(from, to) },
+            ...hodFilter,
+          },
+        },
+      },
+    });
     const report = await Promise.all(
-      colleges.map(async (c) => ({
+      collegesWithApps.map(async (c) => ({
         College: c.college_name,
         Count: await prisma.application.count({
-          where: { collegeId: c.id, application_date: { ...dateFilter(from, to) } },
+          where: { collegeId: c.id, application_date: { ...dateFilter(from, to) }, ...hodFilter },
         }),
       })),
     );
@@ -171,14 +240,16 @@ reportRouter.get("/college-wise", async (req, res, next) => {
   }
 });
 
-// ─── 6. Training Completed ───
+// â”€â”€â”€ 6. Training Completed â”€â”€â”€
 reportRouter.get("/training-completed", async (req, res, next) => {
   try {
     const { from, to } = req.query as any;
+    const hodFilter = await getHodDepartmentFilter(req as AuthRequest);
     const apps = await prisma.application.findMany({
       where: {
         status: "TRAINING_COMPLETED",
         actual_completion_date: { ...dateFilter(from, to) },
+        ...hodFilter,
       },
       include: { category: true },
     });
@@ -194,18 +265,20 @@ reportRouter.get("/training-completed", async (req, res, next) => {
   }
 });
 
-// ══════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  NEW REPORTS (7-12)
-// ══════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-// ─── 7. In-Charge Wise ───
+// â”€â”€â”€ 7. In-Charge Wise â”€â”€â”€
 reportRouter.get("/incharge-wise", async (req, res, next) => {
   try {
     const { from, to } = req.query as any;
+    const hodFilter = await getHodDepartmentFilter(req as AuthRequest);
     const apps = await prisma.application.findMany({
       where: {
         scrutiny_in_charge_id: { not: null },
         scrutiny_date: { ...dateFilter(from, to) },
+        ...hodFilter,
       },
     });
     const rows = apps.map((a) => ({
@@ -221,34 +294,46 @@ reportRouter.get("/incharge-wise", async (req, res, next) => {
   }
 });
 
-// ─── 8. College Wise Applications ───
+// â”€â”€â”€ 8. College Wise Applications â”€â”€â”€
 reportRouter.get("/college-wise-apps", async (req, res, next) => {
   try {
     const { from, to } = req.query as any;
-    const colleges = await prisma.college.findMany();
+    const hodFilter = await getHodDepartmentFilter(req as AuthRequest);
+    // Only fetch colleges that have at least one application in the date range
+    const collegesWithApps = await prisma.college.findMany({
+      where: {
+        applications: {
+          some: {
+            application_date: { ...dateFilter(from, to) },
+            ...hodFilter,
+          },
+        },
+      },
+    });
     const report = await Promise.all(
-      colleges.map(async (c) => {
+      collegesWithApps.map(async (c) => {
         const apps = await prisma.application.findMany({
-          where: { collegeId: c.id, application_date: { ...dateFilter(from, to) } },
-          select: { application_no: true, student_name: true, status: true, application_date: true },
+          where: { collegeId: c.id, application_date: { ...dateFilter(from, to) }, ...hodFilter },
+          select: { id: true, application_no: true, student_name: true, status: true, application_date: true },
         });
         return {
           College: c.college_name,
           "Total Apps": apps.length,
-          Students: apps.map((a) => `${a.application_no} (${a.student_name})`).join("; "),
+          Applications: apps.map((a) => ({ id: a.id, no: a.application_no, student: a.student_name })),
         };
       }),
     );
-    sendResponse(res, report, ["College", "Total Apps", "Students"], "college_wise_applications");
+    sendResponse(res, report, ["College", "Total Apps", "Applications"], "college_wise_applications");
   } catch (error) {
     next(error);
   }
 });
 
-// ─── 9. Department Wise Posting ───
+// â”€â”€â”€ 9. Department Wise Posting â”€â”€â”€
 reportRouter.get("/dept-posting", async (req, res, next) => {
   try {
     const { from, to } = req.query as any;
+    const hodFilter = await getHodDepartmentFilter(req as AuthRequest);
     const depts = await prisma.department.findMany();
     const report = await Promise.all(
       depts.map(async (d) => ({
@@ -258,6 +343,7 @@ reportRouter.get("/dept-posting", async (req, res, next) => {
             posting_department_id: d.id,
             posting_department: { is: { id: d.id } },
             ...(from || to ? { application_date: { ...dateFilter(from, to) } } : {}),
+            ...hodFilter,
           },
         }),
       })),
@@ -268,20 +354,22 @@ reportRouter.get("/dept-posting", async (req, res, next) => {
   }
 });
 
-// ─── 10. Recommended by Employee ───
+// â”€â”€â”€ 10. Recommended by Employee â”€â”€â”€
 reportRouter.get("/recommended-by", async (req, res, next) => {
   try {
     const { from, to } = req.query as any;
+    const hodFilter = await getHodDepartmentFilter(req as AuthRequest);
     const apps = await prisma.application.findMany({
       where: {
-        recommending_employee_id: { not: null },
+        employee_id: { not: null },
         application_date: { ...dateFilter(from, to) },
+        ...hodFilter,
       },
-      include: { recommending_employee: true },
+      include: { employee: true },
     });
     const rows = apps.map((a) => ({
-      Employee: a.recommending_employee?.name ?? "Unknown",
-      "Emp No": a.recommending_employee?.employee_no ?? "",
+      Employee: a.employee?.name ?? "Unknown",
+      "Emp No": a.employee?.employee_no ?? "",
       "App No": a.application_no,
       "Student Name": a.student_name,
       Status: a.status,
@@ -292,14 +380,16 @@ reportRouter.get("/recommended-by", async (req, res, next) => {
   }
 });
 
-// ─── 11. Other References ───
+// â”€â”€â”€ 11. Other References â”€â”€â”€
 reportRouter.get("/other-references", async (req, res, next) => {
   try {
     const { from, to } = req.query as any;
+    const hodFilter = await getHodDepartmentFilter(req as AuthRequest);
     const apps = await prisma.application.findMany({
       where: {
         applicant_type: "OTHER_REFERENCE",
         application_date: { ...dateFilter(from, to) },
+        ...hodFilter,
       },
     });
     const rows = apps.map((a) => ({
@@ -314,22 +404,24 @@ reportRouter.get("/other-references", async (req, res, next) => {
   }
 });
 
-// ─── 12. Employee's Son/Daughter ───
+// â”€â”€â”€ 12. Employee's Son/Daughter â”€â”€â”€
 reportRouter.get("/employee-children", async (req, res, next) => {
   try {
     const { from, to } = req.query as any;
+    const hodFilter = await getHodDepartmentFilter(req as AuthRequest);
     const apps = await prisma.application.findMany({
       where: {
         son_daughter: true,
         application_date: { ...dateFilter(from, to) },
+        ...hodFilter,
       },
-      include: { recommending_employee: true },
+      include: { employee: true },
     });
     const rows = apps.map((a) => ({
       "App No": a.application_no,
       "Student Name": a.student_name,
       "Father Name": a.student_father_name,
-      "Recommending Emp": a.recommending_employee?.name ?? "",
+      "Recommending Emp": a.employee?.name ?? "",
       Status: a.status,
     }));
     sendResponse(res, rows, ["App No", "Student Name", "Father Name", "Recommending Emp", "Status"], "employee_children");
@@ -338,16 +430,18 @@ reportRouter.get("/employee-children", async (req, res, next) => {
   }
 });
 
-// ─── 13. Training During Financial Year ───
+// â”€â”€â”€ 13. Training During Financial Year â”€â”€â”€
 reportRouter.get("/training-during-fy", async (req, res, next) => {
   try {
     const { from, to } = req.query as any;
+    const hodFilter = await getHodDepartmentFilter(req as AuthRequest);
     const apps = await prisma.application.findMany({
       where: {
         status: {
           in: ["TRAINING_ACTIVE", "TRAINING_COMPLETED", "NO_DUES_PENDING", "CERTIFICATE_READY", "CERTIFICATE_ISSUED", "CLOSED"],
         },
         ...(from || to ? { application_date: { ...dateFilter(from, to) } } : {}),
+        ...hodFilter,
       },
       include: { category: true, branch: true },
     });

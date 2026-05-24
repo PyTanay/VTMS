@@ -49,29 +49,30 @@ const STATUS_LABELS: Record<string, string> = {
   CLOSED: "Closed",
 };
 
+// Status colors using CSS variables for dark mode support
 const STATUS_COLORS: Record<string, { bg: string; dot: string; text: string }> = {
-  CREATED: { bg: "#e0e7ff", dot: "#4f46e5", text: "#4338ca" },
-  DRAFT: { bg: "#f3f4f6", dot: "#9ca3af", text: "#6b7280" },
-  SUBMITTED: { bg: "#dbeafe", dot: "#2563eb", text: "#1e40af" },
-  PENDING_APPROVAL: { bg: "#fef3c7", dot: "#f59e0b", text: "#b45309" },
-  APPROVED: { bg: "#dcfce7", dot: "#16a34a", text: "#15803d" },
-  REJECTED: { bg: "#fee2e2", dot: "#dc2626", text: "#b91c1c" },
-  RECEIVED_BY_TC: { bg: "#e0e7ff", dot: "#4f46e5", text: "#4338ca" },
-  SCRUTINIZED: { bg: "#dbeafe", dot: "#2563eb", text: "#1e40af" },
-  ASSIGNED_TO_INCHARGE: { bg: "#f3e8ff", dot: "#7c3aed", text: "#6d28d9" },
-  PERMISSION_LETTER_SENT: { bg: "#dcfce7", dot: "#16a34a", text: "#15803d" },
-  JOINING_PENDING: { bg: "#fef3c7", dot: "#f59e0b", text: "#b45309" },
-  DOCUMENTS_VERIFIED: { bg: "#dcfce7", dot: "#16a34a", text: "#15803d" },
-  BIODATA_COMPLETED: { bg: "#dcfce7", dot: "#16a34a", text: "#15803d" },
-  GATE_PASS_CREATED: { bg: "#dcfce7", dot: "#16a34a", text: "#15803d" },
-  POSTED: { bg: "#dbeafe", dot: "#2563eb", text: "#1e40af" },
-  TRAINING_ACTIVE: { bg: "#dcfce7", dot: "#16a34a", text: "#15803d" },
-  NO_DUES_PENDING: { bg: "#fef3c7", dot: "#f59e0b", text: "#b45309" },
-  REPORT_SUBMITTED: { bg: "#dbeafe", dot: "#2563eb", text: "#1e40af" },
-  CERTIFICATE_READY: { bg: "#fef3c7", dot: "#f59e0b", text: "#b45309" },
-  CERTIFICATE_ISSUED: { bg: "#dcfce7", dot: "#16a34a", text: "#15803d" },
-  TRAINING_COMPLETED: { bg: "#dcfce7", dot: "#16a34a", text: "#15803d" },
-  CLOSED: { bg: "#f3f4f6", dot: "#9ca3af", text: "#6b7280" },
+  CREATED: { bg: "var(--info-bg)", dot: "var(--primary-accent)", text: "var(--info-text)" },
+  DRAFT: { bg: "var(--default-bg)", dot: "#9ca3af", text: "var(--default-text)" },
+  SUBMITTED: { bg: "var(--info-bg)", dot: "var(--primary-accent)", text: "var(--info-text)" },
+  PENDING_APPROVAL: { bg: "var(--warning-bg)", dot: "#f59e0b", text: "var(--warning-text)" },
+  APPROVED: { bg: "var(--success-bg)", dot: "#16a34a", text: "var(--success-text)" },
+  REJECTED: { bg: "var(--danger-bg)", dot: "#dc2626", text: "var(--danger-text)" },
+  RECEIVED_BY_TC: { bg: "var(--info-bg)", dot: "var(--primary-accent)", text: "var(--info-text)" },
+  SCRUTINIZED: { bg: "var(--info-bg)", dot: "var(--primary-accent)", text: "var(--info-text)" },
+  ASSIGNED_TO_INCHARGE: { bg: "var(--info-bg)", dot: "var(--primary-accent)", text: "var(--info-text)" },
+  PERMISSION_LETTER_SENT: { bg: "var(--success-bg)", dot: "#16a34a", text: "var(--success-text)" },
+  JOINING_PENDING: { bg: "var(--warning-bg)", dot: "#f59e0b", text: "var(--warning-text)" },
+  DOCUMENTS_VERIFIED: { bg: "var(--success-bg)", dot: "#16a34a", text: "var(--success-text)" },
+  BIODATA_COMPLETED: { bg: "var(--success-bg)", dot: "#16a34a", text: "var(--success-text)" },
+  GATE_PASS_CREATED: { bg: "var(--success-bg)", dot: "#16a34a", text: "var(--success-text)" },
+  POSTED: { bg: "var(--info-bg)", dot: "var(--primary-accent)", text: "var(--info-text)" },
+  TRAINING_ACTIVE: { bg: "var(--success-bg)", dot: "#16a34a", text: "var(--success-text)" },
+  NO_DUES_PENDING: { bg: "var(--warning-bg)", dot: "#f59e0b", text: "var(--warning-text)" },
+  REPORT_SUBMITTED: { bg: "var(--info-bg)", dot: "var(--primary-accent)", text: "var(--info-text)" },
+  CERTIFICATE_READY: { bg: "var(--warning-bg)", dot: "#f59e0b", text: "var(--warning-text)" },
+  CERTIFICATE_ISSUED: { bg: "var(--success-bg)", dot: "#16a34a", text: "var(--success-text)" },
+  TRAINING_COMPLETED: { bg: "var(--success-bg)", dot: "#16a34a", text: "var(--success-text)" },
+  CLOSED: { bg: "var(--default-bg)", dot: "#9ca3af", text: "var(--default-text)" },
 };
 
 const formatDate = (ts: string): string => {
@@ -158,7 +159,7 @@ const WorkflowTimeline: React.FC<Props> = ({ applicationId }) => {
           />
 
           {data.timeline.map((entry, index) => {
-            const colors = STATUS_COLORS[entry.status] || { bg: "#f3f4f6", dot: "#9ca3af", text: "#6b7280" };
+            const colors = STATUS_COLORS[entry.status] || { bg: "var(--default-bg)", dot: "#9ca3af", text: "var(--default-text)" };
             const label = STATUS_LABELS[entry.status] || entry.status.replace(/_/g, " ");
             const isLast = index === data.timeline.length - 1;
 

@@ -113,7 +113,13 @@ const Layout: React.FC = () => {
       roles: ["ADMIN", "TRAINING_IN_CHARGE", "TRAINING_CENTER_SECTION_HEAD"],
     },
     { text: "Applications", path: "/applications", icon: ICONS.applications, section: "Transactions" },
-    { text: "Masters", path: "/masters", icon: ICONS.masters, section: "Transactions" },
+    {
+      text: "Masters",
+      path: "/masters",
+      icon: ICONS.masters,
+      section: "Transactions",
+      roles: ["ADMIN", "TRAINING_CENTER_SECTION_HEAD", "TRAINING_IN_CHARGE"],
+    },
     {
       text: "Scrutiny Queue",
       path: "/scrutiny-queue",
@@ -122,22 +128,44 @@ const Layout: React.FC = () => {
       badge: "scrutiny",
       roles: ["ADMIN", "TRAINING_CENTER_SECTION_HEAD"],
     },
-    { text: "Permission Letters", path: "/permission-letters", icon: ICONS.permission, section: "Transactions", badge: "permission" },
+    {
+      text: "Permission Letters",
+      path: "/permission-letters",
+      icon: ICONS.permission,
+      section: "Transactions",
+      badge: "permission",
+      roles: ["ADMIN", "TRAINING_CENTER_SECTION_HEAD", "TRAINING_IN_CHARGE"],
+    },
     {
       text: "Doc Verification",
       path: "/document-verification",
       icon: ICONS.verification,
       section: "Transactions",
       badge: "verification",
+      roles: ["ADMIN", "TRAINING_CENTER_SECTION_HEAD", "TRAINING_IN_CHARGE"],
     },
-    { text: "Gate Pass", path: "/gate-pass", icon: ICONS.gatepass, section: "Transactions" },
-    { text: "Posting Planner", path: "/posting-planner", icon: ICONS.posting, section: "Transactions", badge: "posting" },
+    {
+      text: "Gate Pass",
+      path: "/gate-pass",
+      icon: ICONS.gatepass,
+      section: "Transactions",
+      roles: ["ADMIN", "TRAINING_CENTER_SECTION_HEAD", "TRAINING_IN_CHARGE"],
+    },
+    {
+      text: "Posting Planner",
+      path: "/posting-planner",
+      icon: ICONS.posting,
+      section: "Transactions",
+      badge: "posting",
+      roles: ["ADMIN", "TRAINING_CENTER_SECTION_HEAD", "TRAINING_IN_CHARGE"],
+    },
     {
       text: "Report Ack",
       path: "/report-acknowledgement",
       icon: ICONS.certificate,
       section: "Transactions",
       badge: "nodue",
+      roles: ["ADMIN", "TRAINING_CENTER_SECTION_HEAD", "TRAINING_IN_CHARGE"],
     },
     {
       text: "Certificate Ack",
@@ -145,10 +173,31 @@ const Layout: React.FC = () => {
       icon: ICONS.verification,
       section: "Transactions",
       badge: "certificates",
+      roles: ["ADMIN", "TRAINING_CENTER_SECTION_HEAD", "TRAINING_IN_CHARGE"],
     },
-    { text: "Certificates", path: "/certificates", icon: ICONS.certificate, section: "Transactions", badge: "certificates" },
-    { text: "No Due Clearance", path: "/no-due", icon: ICONS.nodue, section: "Transactions", badge: "nodue" },
-    { text: "Reports", path: "/reports", icon: ICONS.reports, section: "Reports" },
+    {
+      text: "Certificates",
+      path: "/certificates",
+      icon: ICONS.certificate,
+      section: "Transactions",
+      badge: "certificates",
+      roles: ["ADMIN", "TRAINING_CENTER_SECTION_HEAD", "TRAINING_IN_CHARGE"],
+    },
+    {
+      text: "No Due Clearance",
+      path: "/no-due",
+      icon: ICONS.nodue,
+      section: "Transactions",
+      badge: "nodue",
+      roles: ["ADMIN", "TRAINING_CENTER_SECTION_HEAD", "TRAINING_IN_CHARGE"],
+    },
+    {
+      text: "Reports",
+      path: "/reports",
+      icon: ICONS.reports,
+      section: "Reports",
+      roles: ["ADMIN", "ED_GM_APPROVER", "TRAINING_CENTER_SECTION_HEAD", "TRAINING_IN_CHARGE"],
+    },
     { text: "Account", path: "/account", icon: ICONS.users, section: "Admin" },
     { text: "Audit Log", path: "/audit-log", icon: ICONS.audit, section: "Admin", roles: ["ADMIN", "TRAINING_CENTER_SECTION_HEAD"] },
     { text: "Users", path: "/users", icon: ICONS.users, section: "Admin", roles: ["ADMIN"] },
@@ -165,7 +214,7 @@ const Layout: React.FC = () => {
       path: "/samvad-sync",
       icon: ICONS.sync,
       section: "Admin",
-      roles: ["ADMIN", "TRAINING_CENTER_SECTION_HEAD"],
+      roles: ["ADMIN"],
     },
   ];
 
@@ -334,11 +383,27 @@ const Layout: React.FC = () => {
                   flexShrink: 0,
                 }}
               >
-                {user?.username?.[0]?.toUpperCase() || "U"}
+                {(user?.employee?.name?.[0] || user?.username?.[0] || "U").toUpperCase()}
               </div>
               <div style={{ flex: 1, minWidth: 0, lineHeight: 1.3 }}>
-                <p style={{ fontSize: "12px", fontWeight: 600, margin: 0, color: "var(--text-primary)" }}>{user?.username}</p>
-                <p style={{ fontSize: "10px", color: "var(--text-secondary)", margin: 0 }}>{user?.role?.replace(/_/g, " ")}</p>
+                <p
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    margin: 0,
+                    color: "var(--text-primary)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {user?.employee?.name || user?.username}
+                </p>
+                <p style={{ fontSize: "10px", color: "var(--text-secondary)", margin: 0 }}>
+                  {user?.employee?.employee_no ? `EC: ${user.employee.employee_no}` : user?.username}
+                  {user?.employee?.designation ? ` · ${user.employee.designation}` : ""}
+                </p>
+                <p style={{ fontSize: "9px", color: "var(--text-secondary)", margin: "2px 0 0" }}>{user?.role?.replace(/_/g, " ")}</p>
               </div>
             </div>
           )}

@@ -12,9 +12,12 @@ interface DashboardStats {
   pendingPosting: number;
   pendingCertificate: number;
   pendingNoDue: number;
-  totalEmployees: number;
+  activeEmployees: number;
   totalUsers: number;
   recentApplications: Array<{ id: number; application_no: string; student_name: string; status: string; createdAt: string }>;
+  totalVisits: number;
+  concurrentUsers: number;
+  uniqueVisitorsToday: number;
 }
 
 const Dashboard: React.FC = () => {
@@ -29,9 +32,12 @@ const Dashboard: React.FC = () => {
     pendingPosting: 0,
     pendingCertificate: 0,
     pendingNoDue: 0,
-    totalEmployees: 0,
+    activeEmployees: 0,
     totalUsers: 0,
     recentApplications: [],
+    totalVisits: 0,
+    concurrentUsers: 0,
+    uniqueVisitorsToday: 0,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -39,11 +45,12 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [statsRes, employeesRes, usersRes, appsRes] = await Promise.all([
+        const [statsRes, employeesRes, usersRes, appsRes, siteStatsRes] = await Promise.all([
           api.get("/applications/stats"),
           api.get("/employees", { params: { perPage: 5000 } }),
           api.get("/users"),
           api.get("/applications"),
+          api.get("/applications/site-stats"),
         ]);
 
         const allApps = appsRes.data.data || [];
@@ -66,9 +73,13 @@ const Dashboard: React.FC = () => {
           (a: any) => a.status === "CERTIFICATE_ISSUED" || a.status === "NO_DUES_PENDING",
         ).length;
 
+        // Count only active employees
+        const allEmployees = employeesRes.data.data || [];
+        const activeEmployeesCount = allEmployees.filter((e: any) => e.active).length;
+
         setStats({
           ...statsRes.data.data,
-          totalEmployees: employeesRes.data.data?.length || 0,
+          activeEmployees: activeEmployeesCount,
           totalUsers: usersRes.data.data?.length || 0,
           pendingScrutiny: pendingScrutinyCount,
           pendingPermission: pendingPermissionCount,
@@ -77,6 +88,9 @@ const Dashboard: React.FC = () => {
           pendingCertificate: pendingCertCount,
           pendingNoDue: pendingNoDueCount,
           recentApplications: allApps.slice(0, 5),
+          totalVisits: siteStatsRes.data.data?.totalVisits || 0,
+          concurrentUsers: siteStatsRes.data.data?.concurrentUsers || 0,
+          uniqueVisitorsToday: siteStatsRes.data.data?.uniqueVisitorsToday || 0,
         });
       } catch {
         setError("Error fetching dashboard data");
@@ -148,8 +162,11 @@ const Dashboard: React.FC = () => {
         />
         <StatCard label="Active Trainees" value={stats.activeTrainees} accent="#ec4899" />
         <StatCard label="Departments" value={stats.totalDepartments} accent="#10b981" />
-        <StatCard label="Employees" value={stats.totalEmployees} accent="#8b5cf6" />
+        <StatCard label="Active Employees" value={stats.activeEmployees} accent="#8b5cf6" />
         <StatCard label="Registered Users" value={stats.totalUsers} accent="#f59e0b" onClick={() => navigate("/users")} />
+        <StatCard label="Total Visits (30d)" value={stats.totalVisits} accent="#06b6d4" />
+        <StatCard label="Concurrent Users" value={stats.concurrentUsers} accent="#10b981" />
+        <StatCard label="Unique Visitors Today" value={stats.uniqueVisitorsToday} accent="#8b5cf6" />
       </div>
 
       {/* Pending Workflow Cards */}

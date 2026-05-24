@@ -1,4 +1,4 @@
-import prisma from "../prisma";
+﻿import prisma from "../prisma";
 import { sendEmail } from "../utils/email";
 
 interface ReminderConfig {
@@ -17,14 +17,14 @@ const REMINDER_TYPES: Record<string, ReminderConfig> = {
     daysThreshold: 2,
     getRecipients: (app) => {
       const recipients: { email: string; name: string }[] = [];
-      if (app.recommending_employee?.email) {
-        recipients.push({ email: app.recommending_employee.email, name: app.recommending_employee.name });
+      if (app.employee?.email) {
+        recipients.push({ email: app.employee.email, name: app.employee.name });
       }
       return recipients;
     },
     getSubject: (app) => `Reminder: Application ${app.application_no} pending approval`,
     getBody: (app) =>
-      `Dear ${app.recommending_employee?.name || "Approver"},<br><br>` +
+      `Dear ${app.employee?.name || "Approver"},<br><br>` +
       `This is a reminder that the vocational training application for <strong>${app.student_name} ${app.student_surname}</strong>` +
       ` (App No: ${app.application_no}) is awaiting your approval since ${new Date(app.application_date).toLocaleDateString()}.<br><br>` +
       `Please log in to the VTMS portal to take action.<br><br>Regards,<br>VTMS System`,
@@ -50,14 +50,14 @@ const REMINDER_TYPES: Record<string, ReminderConfig> = {
     daysThreshold: 2,
     getRecipients: (app) => {
       const recipients: { email: string; name: string }[] = [];
-      if (app.recommending_employee?.email) {
-        recipients.push({ email: app.recommending_employee.email, name: app.recommending_employee.name });
+      if (app.employee?.email) {
+        recipients.push({ email: app.employee.email, name: app.employee.name });
       }
       return recipients;
     },
     getSubject: (app) => `Reminder: Documents pending for ${app.application_no}`,
     getBody: (app) =>
-      `Dear ${app.recommending_employee?.name || "Employee"},<br><br>` +
+      `Dear ${app.employee?.name || "Employee"},<br><br>` +
       `The student <strong>${app.student_name} ${app.student_surname}</strong> (App No: ${app.application_no})` +
       ` has been issued a permission letter. Please ensure the required documents are uploaded.<br><br>` +
       `Log in to VTMS to complete the process.<br><br>Regards,<br>VTMS System`,
@@ -68,14 +68,14 @@ const REMINDER_TYPES: Record<string, ReminderConfig> = {
     daysThreshold: 3,
     getRecipients: (app) => {
       const recipients: { email: string; name: string }[] = [];
-      if (app.recommending_employee?.email) {
-        recipients.push({ email: app.recommending_employee.email, name: app.recommending_employee.name });
+      if (app.employee?.email) {
+        recipients.push({ email: app.employee.email, name: app.employee.name });
       }
       return recipients;
     },
     getSubject: (app) => `Reminder: Training report pending for ${app.application_no}`,
     getBody: (app) =>
-      `Dear ${app.recommending_employee?.name || "Employee"},<br><br>` +
+      `Dear ${app.employee?.name || "Employee"},<br><br>` +
       `The training for <strong>${app.student_name} ${app.student_surname}</strong> (App No: ${app.application_no})` +
       ` has been completed. Please submit the training report.<br><br>` +
       `Log in to VTMS to submit the report.<br><br>Regards,<br>VTMS System`,
@@ -127,7 +127,7 @@ export const runReminders = async (): Promise<{ type: string; sent: number }[]> 
           application_date: { lte: thresholdDate },
         },
         include: {
-          recommending_employee: {
+          employee: {
             select: { name: true, email: true },
           },
         },

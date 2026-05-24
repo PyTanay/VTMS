@@ -9,7 +9,7 @@ noDueRouter.use(authenticate);
 
 noDueRouter.get("/", async (_req: AuthRequest, res, next) => {
   try {
-    const forms = await prisma.noDueForm.findMany({ include: { application: true, lines: true } });
+    const forms = await prisma.noDueForm.findMany({ include: { application: true, no_due_clearance_lines: true } });
     res.json({ success: true, data: forms });
   } catch (error) {
     next(error);
@@ -23,7 +23,7 @@ noDueRouter.post("/:noDueId/generate", authorize(["ADMIN", "TRAINING_CENTER_SECT
 
     const noDueForm = await prisma.noDueForm.findUnique({
       where: { id: noDueId },
-      include: { application: true, lines: true },
+      include: { application: true, no_due_clearance_lines: true },
     });
 
     if (!noDueForm) {
@@ -46,7 +46,7 @@ noDueRouter.post("/:noDueId/generate", authorize(["ADMIN", "TRAINING_CENTER_SECT
 noDueRouter.get("/application/:applicationId", async (req, res, next) => {
   try {
     const applicationId = Number(req.params.applicationId);
-    let form = await prisma.noDueForm.findUnique({ where: { applicationId }, include: { lines: true } });
+    let form = await prisma.noDueForm.findUnique({ where: { applicationId }, include: { no_due_clearance_lines: true } });
 
     // Create if doesn't exist
     if (!form) {
@@ -55,7 +55,7 @@ noDueRouter.get("/application/:applicationId", async (req, res, next) => {
         data: {
           applicationId,
           no_due_ref: ref,
-          lines: {
+          no_due_clearance_lines: {
             create: [
               { item_name: "Reference material" },
               { item_name: "Safety items / helmets" },
@@ -63,7 +63,7 @@ noDueRouter.get("/application/:applicationId", async (req, res, next) => {
             ],
           },
         },
-        include: { lines: true },
+        include: { no_due_clearance_lines: true },
       });
     }
 

@@ -21,30 +21,25 @@ interface ApplicationItem {
   branch?: { branch_name: string };
   college?: { college_name: string };
   status: string;
+  approved_from?: string;
+  approved_to?: string;
 }
 
 const PostingPlanner: React.FC = () => {
   const [letters, setLetters] = useState<PostingLetter[]>([]);
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
-  const [employees, setEmployees] = useState<Array<{ id: number; name: string; designation: string; email: string }>>([]);
-  const [departments, setDepartments] = useState<string[]>([]);
-  // EmployeeSearch selections
+  // const [employees, setEmployees] = useState<Array<{ id: number; name: string; designation: string; email: string }>>([]);
+  const [departments, setDepartments] = useState<{ id: number; name: string }[]>([]);
   const [reportingOfficer, setReportingOfficer] = useState<any>(null);
   const [trainingInChargeEmp, setTrainingInChargeEmp] = useState<any>(null);
   const [departmentHeadEmp, setDepartmentHeadEmp] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [generating, setGenerating] = useState<number | null>(null);
-  const [qualificationBranch, setQualificationBranch] = useState("");
-  const [collegeShortName, setCollegeShortName] = useState("");
-  const [collegePlace, setCollegePlace] = useState("");
   const [postingDepartment, setPostingDepartment] = useState("");
-  const [toReportTo, setToReportTo] = useState("");
   const [reportingOfficerEmail, setReportingOfficerEmail] = useState("");
-  const [trainingInCharge, setTrainingInCharge] = useState("");
-  const [departmentHead, setDepartmentHead] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [selectedCollege, setSelectedCollege] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     loadAll();
@@ -69,59 +64,62 @@ const PostingPlanner: React.FC = () => {
   const loadApplications = async () => {
     const res = await api.get("/applications?perPage=500");
     const all: ApplicationItem[] = res.data.data || [];
+    const today = new Date();
     setApplications(
-      all.filter((a) =>
-        ["JOINING_PENDING", "DOCUMENTS_VERIFIED", "GATE_PASS_CREATED", "BIODATA_COMPLETED", "POSTED", "TRAINING_ACTIVE"].includes(
-          a.status,
-        ),
-      ),
+      all.filter((a) => {
+        if (
+          !["JOINING_PENDING", "DOCUMENTS_VERIFIED", "GATE_PASS_CREATED", "BIODATA_COMPLETED", "POSTED", "TRAINING_ACTIVE"].includes(
+            a.status,
+          )
+        )
+          return false;
+        if (a.approved_from && a.approved_to) {
+          const from = new Date(a.approved_from);
+          const to = new Date(a.approved_to);
+          return today >= from && today <= to;
+        }
+        return true;
+      }),
     );
   };
 
   const loadMeta = async () => {
     try {
-      const depRes = await api.get("/employees/meta/departments");
-      setDepartments(depRes.data?.data || []);
+      const depMast = await api.get("/masters/departments");
+      setDepartments((depMast.data.data || []).map((d: any) => ({ id: d.id, name: d.department_name })));
     } catch {
       try {
-        const depMast = await api.get("/masters/departments");
-        setDepartments((depMast.data.data || []).map((d: any) => d.department_name));
+        const metaRes = await api.get("/employees/meta/departments");
+        setDepartments((metaRes.data?.data || []).map((d: string) => ({ id: 0, name: d })));
       } catch {
         setDepartments([]);
       }
     }
     try {
-      const empRes = await api.get("/employees?active=true");
-      setEmployees(empRes.data?.data || []);
+      // const empRes = await api.get("/employees?active=true");
+      // setEmployees(empRes.data?.data || []);
     } catch {
-      setEmployees([]);
+      // setEmployees([]);
     }
   };
 
   const toggle = (id: number) => setSelectedIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
-
-  const selectAll = () => {
-    setSelectedIds(selectedIds.length === applications.length ? [] : applications.map((a) => a.id));
-  };
+  const selectAll = () => setSelectedIds(selectedIds.length === filteredApps.length ? [] : filteredApps.map((a) => a.id));
 
   const handleCreate = async () => {
-    if (!qualificationBranch || !postingDepartment || selectedIds.length === 0) {
-      return setError("Branch, department, and students are required");
-    }
+    if (!postingDepartment || selectedIds.length === 0) return setError("Department and students are required");
     try {
       setError("");
       await api.post("/postings", {
-        qualification_branch: qualificationBranch,
-        college_short_name: collegeShortName || selectedCollege,
-        college_place: collegePlace,
+        qualification_branch: "",
+        college_short_name: "",
+        college_place: "",
         posting_department: postingDepartment,
-        to_report_to: reportingOfficer ? `${reportingOfficer.name} (${reportingOfficer.designation})` : toReportTo,
+        to_report_to: reportingOfficer ? `${reportingOfficer.name} (${reportingOfficer.designation})` : "",
         reporting_officer_email: reportingOfficer?.email || reportingOfficerEmail,
         selected_weekdays: "Monday,Tuesday,Wednesday,Thursday,Friday",
-        training_in_charge: trainingInChargeEmp
-          ? `${trainingInChargeEmp.name} (${trainingInChargeEmp.designation})`
-          : trainingInCharge,
-        department_head: departmentHeadEmp ? `${departmentHeadEmp.name} (${departmentHeadEmp.designation})` : departmentHead,
+        training_in_charge: trainingInChargeEmp ? `${trainingInChargeEmp.name} (${trainingInChargeEmp.designation})` : "",
+        department_head: departmentHeadEmp ? `${departmentHeadEmp.name} (${departmentHeadEmp.designation})` : "",
         applicationIds: selectedIds,
       });
       setSelectedIds([]);
@@ -133,15 +131,8 @@ const PostingPlanner: React.FC = () => {
   };
 
   const resetForm = () => {
-    setQualificationBranch("");
-    setCollegeShortName("");
-    setCollegePlace("");
-    setSelectedCollege("");
     setPostingDepartment("");
-    setToReportTo("");
     setReportingOfficerEmail("");
-    setTrainingInCharge("");
-    setDepartmentHead("");
     setReportingOfficer(null);
     setTrainingInChargeEmp(null);
     setDepartmentHeadEmp(null);
@@ -159,8 +150,14 @@ const PostingPlanner: React.FC = () => {
     }
   };
 
-  const availableColleges = [...new Set(applications.map((a) => a.college?.college_name).filter(Boolean))] as string[];
-  const availableBranches = [...new Set(applications.map((a) => a.branch?.branch_name).filter(Boolean))] as string[];
+  const filteredApps = applications.filter(
+    (a) =>
+      !searchQuery ||
+      a.application_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      a.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      a.college?.college_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      a.branch?.branch_name?.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
   return (
     <div className="page-gap">
@@ -168,7 +165,7 @@ const PostingPlanner: React.FC = () => {
         <div className="panel-body">
           <h2 style={{ margin: "0 0 4px", fontSize: "18px" }}>Posting Planner</h2>
           <p style={{ color: "var(--text-secondary)", marginTop: "4px", marginBottom: "16px", fontSize: "14px" }}>
-            Create posting letters for trainees and manage issued letters.
+            Create posting letters for trainees currently within their approved training period.
           </p>
 
           {error && (
@@ -188,49 +185,12 @@ const PostingPlanner: React.FC = () => {
 
           <div className="form-grid-2">
             <div className="form-group">
-              <label className="form-label">Qualification Branch *</label>
-              <input
-                className="form-input"
-                list="branch-list"
-                value={qualificationBranch}
-                onChange={(e) => setQualificationBranch(e.target.value)}
-                placeholder="Type or select"
-              />
-              <datalist id="branch-list">
-                {availableBranches.map((b) => (
-                  <option key={b} value={b} />
-                ))}
-              </datalist>
-            </div>
-            <div className="form-group">
-              <label className="form-label">College</label>
-              <select
-                className="form-input"
-                value={selectedCollege}
-                onChange={(e) => {
-                  setSelectedCollege(e.target.value);
-                  setCollegeShortName(e.target.value);
-                }}
-              >
-                <option value="">-- Select college --</option>
-                {availableColleges.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">College Place</label>
-              <input className="form-input" value={collegePlace} onChange={(e) => setCollegePlace(e.target.value)} />
-            </div>
-            <div className="form-group">
               <label className="form-label">Posting Department *</label>
               <select className="form-input" value={postingDepartment} onChange={(e) => setPostingDepartment(e.target.value)}>
                 <option value="">-- Select department --</option>
                 {departments.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
+                  <option key={d.id} value={d.name}>
+                    {d.name}
                   </option>
                 ))}
               </select>
@@ -240,28 +200,27 @@ const PostingPlanner: React.FC = () => {
                 label="Reporting Officer"
                 onSelect={(emp) => {
                   setReportingOfficer(emp);
-                  setToReportTo(emp ? `${emp.name} (${emp.designation})` : "");
                   setReportingOfficerEmail(emp?.email || "");
                 }}
                 selectedEmployee={reportingOfficer}
-                placeholder="Search by name, EC No, or initials..."
+                placeholder="Search by name, EC No..."
                 filterDepartment={postingDepartment || undefined}
               />
             </div>
             <div className="form-group">
               <EmployeeSearch
-                label="Training In-Charge (Training Center Employee)"
+                label="Training In-Charge"
                 onSelect={(emp) => setTrainingInChargeEmp(emp)}
                 selectedEmployee={trainingInChargeEmp}
-                placeholder="Search traiing center employee..."
+                placeholder="Search training center employee..."
               />
             </div>
             <div className="form-group">
               <EmployeeSearch
-                label="Department Head (CM/AGM/GM/ED only)"
+                label="Department Head"
                 onSelect={(emp) => setDepartmentHeadEmp(emp)}
                 selectedEmployee={departmentHeadEmp}
-                placeholder="Search for dept head..."
+                placeholder="Search dept head..."
                 filterDepartment={postingDepartment || undefined}
                 filterDesignation="Chief Manager|AGM|GM|ED|Executive Director|Deputy General Manager|Additional General Manager"
               />
@@ -272,18 +231,28 @@ const PostingPlanner: React.FC = () => {
             <div className="flex-between" style={{ marginBottom: "8px" }}>
               <h3 style={{ margin: 0, fontSize: "15px" }}>Select Trainees</h3>
               <span style={{ color: "var(--text-secondary)", fontSize: "13px" }}>
-                {selectedIds.length} of {applications.length} selected
+                {selectedIds.length} of {filteredApps.length} selected
               </span>
             </div>
-            {applications.length === 0 ? (
-              <p style={{ color: "var(--text-secondary)", fontSize: "14px" }}>No trainees available for posting.</p>
+            <div style={{ marginBottom: "12px" }}>
+              <input
+                className="form-input"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="🔍 Search by app no, student name, college, branch..."
+                style={{ width: "100%" }}
+              />
+            </div>
+            {filteredApps.length === 0 ? (
+              <p style={{ color: "var(--text-secondary)", fontSize: "14px" }}>No trainees available.</p>
             ) : (
               <>
                 <div style={{ marginBottom: "8px" }}>
                   <label style={{ fontSize: "13px", cursor: "pointer" }}>
                     <input
                       type="checkbox"
-                      checked={selectedIds.length === applications.length && applications.length > 0}
+                      checked={selectedIds.length === filteredApps.length && filteredApps.length > 0}
                       onChange={selectAll}
                     />{" "}
                     Select All / Deselect All
@@ -304,7 +273,7 @@ const PostingPlanner: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {applications.map((app) => (
+                      {filteredApps.map((app) => (
                         <tr key={app.id}>
                           <td>
                             <input type="checkbox" checked={selectedIds.includes(app.id)} onChange={() => toggle(app.id)} />
@@ -326,14 +295,13 @@ const PostingPlanner: React.FC = () => {
             className="btn btn-primary"
             style={{ marginTop: "16px" }}
             onClick={handleCreate}
-            disabled={!qualificationBranch || !postingDepartment || selectedIds.length === 0}
+            disabled={!postingDepartment || selectedIds.length === 0}
           >
             Create Posting Letter ({selectedIds.length} students)
           </button>
         </div>
       </div>
 
-      {/* Issued Letters */}
       <div className="panel">
         <div className="panel-body">
           <h3 style={{ margin: "0 0 12px", fontSize: "15px" }}>Issued Posting Letters</h3>
@@ -347,7 +315,6 @@ const PostingPlanner: React.FC = () => {
                 <thead>
                   <tr>
                     <th>Ref No</th>
-                    <th>Branch</th>
                     <th>Department</th>
                     <th>Trainees</th>
                     <th>Created</th>
@@ -358,11 +325,18 @@ const PostingPlanner: React.FC = () => {
                   {letters.map((l) => (
                     <tr key={l.id}>
                       <td style={{ fontWeight: 500 }}>{l.ref_no}</td>
-                      <td style={{ color: "var(--text-secondary)" }}>{l.qualification_branch}</td>
                       <td style={{ color: "var(--text-secondary)" }}>{l.posting_department}</td>
                       <td>{l.students?.length || 0}</td>
                       <td style={{ color: "var(--text-secondary)", fontSize: "13px" }}>
-                        {l.created_at ? new Date(l.created_at).toLocaleDateString() : "-"}
+                        {l.created_at
+                          ? new Date(l.created_at).toLocaleDateString("en-IN", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "-"}
                       </td>
                       <td>
                         <button

@@ -136,9 +136,11 @@ const ApplicationDetails: React.FC = () => {
 
   useEffect(() => {
     if (!application) return;
-    setApprovedFrom(application.approved_from?.slice(0, 10) || "");
-    setApprovedTo(application.approved_to?.slice(0, 10) || "");
-    setScrutinyDate(application.scrutiny_date?.slice(0, 10) || "");
+    // Set from/to to applicant's requested dates if not already set
+    setApprovedFrom(application.approved_from?.slice(0, 10) || application.requested_from?.slice(0, 10) || "");
+    setApprovedTo(application.approved_to?.slice(0, 10) || application.requested_to?.slice(0, 10) || "");
+    // Set scrutiny date to today if not already set
+    setScrutinyDate(application.scrutiny_date?.slice(0, 10) || new Date().toISOString().slice(0, 10));
     setScrutinyRemarks(application.scrutiny_remarks || "");
     setPermissionLetterRef(application.permission_letter_ref || "");
     setPermissionLetterDate(application.permission_letter_date?.slice(0, 10) || "");

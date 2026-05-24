@@ -1,6 +1,9 @@
 import fs from "fs";
 import path from "path";
 import storageConfig from "../config/storage";
+import { logger } from "../utils/logger";
+
+const log = logger.child("CLEANUP");
 
 export const cleanupOldUploads = (daysOld: number = 30) => {
   const uploadsDir = storageConfig.uploadsDir;
@@ -9,16 +12,21 @@ export const cleanupOldUploads = (daysOld: number = 30) => {
 
   try {
     const files = fs.readdirSync(uploadsDir);
+    let deletedCount = 0;
     files.forEach((file) => {
       const filePath = path.join(uploadsDir, file);
       const stat = fs.statSync(filePath);
       if (stat.mtimeMs < cutoff) {
         fs.unlinkSync(filePath);
-        console.log(`Deleted old upload: ${file}`);
+        deletedCount++;
+        log.info("Deleted old upload", { file });
       }
     });
+    if (deletedCount > 0 || files.length > 0) {
+      log.info("Cleanup scan complete", { totalFiles: files.length, deleted: deletedCount, daysOld });
+    }
   } catch (err) {
-    console.error("Cleanup task error", err);
+    log.error("Cleanup task error", err);
   }
 };
 

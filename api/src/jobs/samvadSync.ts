@@ -3,17 +3,38 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 import bcrypt from "bcryptjs";
 import prisma from "../prisma";
+import { logger } from "../utils/logger";
+import { broadcastLog } from "../controllers/samvad.controller";
 
+const log = logger.child("SAMVAD_SYNC");
 const MAX_RETRIES = 3;
 const EMPLOYEE_DEFAULT_PASSWORD = process.env.EMPLOYEE_DEFAULT_PASSWORD || "gnfc123";
 const CREATE_EMPLOYEE_USERS = process.env.CREATE_EMPLOYEE_USERS === "true";
 
+// Generate unique sync run ID for grouping logs
+const generateSyncRunId = () => `sync_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+// ── Log to SamvadSyncLog table and broadcast via SSE ──
+const logSyncEvent = async (level: string, message: string, details?: any, syncRunId?: string) => {
+  try {
+    const logEntry = await (prisma as any).samvadSyncLog.create({
+      data: {
+        level,
+        message,
+        details: details ? JSON.stringify(details) : undefined,
+        syncRunId,
+      },
+    });
+    // Broadcast to SSE clients
+    broadcastLog(logEntry);
+  } catch (err) {
+    log.error("Failed to log sync event", err);
+  }
+};
+
 // ── Error logging helper ──
 const logError = (context: string, error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  const stack = error instanceof Error ? error.stack : "";
-  console.error(`[SAMVAD_SYNC] ${context}: ${message}`);
-  if (stack) console.error(stack);
+  log.error(context, error);
 
   // Also log to EmailLog table for visibility
   prisma.emailLog
@@ -21,11 +42,11 @@ const logError = (context: string, error: unknown) => {
       data: {
         to_email: "admin@gnfc.in",
         subject: `SAMVAD Sync Error: ${context}`,
-        body: `Error: ${message}\nStack: ${stack || "N/A"}\nTime: ${new Date().toISOString()}`,
+        body: `Error: ${error instanceof Error ? error.message : String(error)}\nTime: ${new Date().toISOString()}`,
         sent_status: false,
       },
     })
-    .catch((err) => console.error("[SAMVAD_SYNC] Failed to log error to DB", err));
+    .catch((err) => log.error("Failed to log error to DB", err));
 };
 
 const normalizeLabel = (text: string) =>
@@ -116,9 +137,31 @@ const fetchEmployeeDetails = async (empId: number, retryCount = 0): Promise<any 
     const email =
       extractText($, ['a[href^="mailto:"]']).replace(/^mailto:/i, "") || extractFieldValue($, ["Email", "Official Email", "E-mail"]);
 
+    // Extract status and contact number from SAMVAD
+    const status = extractFieldValue($, ["Status", "Emp Status", "Employment Status"]) || "ACTIVE";
+    const contactNo = extractFieldValue($, ["Contact No", "Mobile", "Phone", "Contact Number"]) || undefined;
+
     if (!name) {
       return null;
     }
+
+    // Skip employees with invalid names (phone numbers, placeholders, single-word garbage data)
+    const nameStr = name.trim();
+    const invalidWordPattern = /^(n\/a|na|none|unknown|not available|employee|test|phone)$/i;
+    const phonePattern = /^\d{10,}$/;
+    if (phonePattern.test(nameStr) || invalidWordPattern.test(nameStr) || nameStr.length < 3) {
+      log.warn(`Skipping employee #${empId} - invalid name: "${nameStr}"`);
+      return null;
+    }
+
+    // Skip if name is just a phone number (10+ digits)
+    if (/^\d+$/.test(nameStr) && nameStr.length >= 10) {
+      log.warn(`Skipping employee #${empId} - name is a phone number: "${nameStr}"`);
+      return null;
+    }
+
+    // Only create active employees (check status from SAMVAD)
+    const isActive = status.toUpperCase() === "ACTIVE";
 
     return {
       employee_no: empId.toString(),
@@ -126,7 +169,9 @@ const fetchEmployeeDetails = async (empId: number, retryCount = 0): Promise<any 
       department: department || "Unknown",
       designation: designation || "Employee",
       email: email || `${empId}@gnfc.in`,
-      active: true,
+      status,
+      contact_no: contactNo,
+      active: isActive,
     };
   } catch (error: any) {
     if (retryCount < MAX_RETRIES) {
@@ -146,41 +191,51 @@ const fetchEmployeeDetails = async (empId: number, retryCount = 0): Promise<any 
  * 2. If it IS taken, append the employee_no to make it unique
  * 3. Fall back to `{employee_no}@gnfc.in`
  */
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
+
+const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
 const resolveSafeEmail = async (employee: any, excludeUserId?: number): Promise<string> => {
-  const preferredEmail = (employee.email || `${employee.employee_no}@gnfc.in`).trim().toLowerCase();
-  if (!preferredEmail) return `${employee.employee_no}@gnfc.in`;
+  const preferredRaw = normalizeEmail(employee.email || `${employee.employee_no}@gnfc.in`);
+  const preferredEmail = isValidEmail(preferredRaw) ? preferredRaw : `${employee.employee_no}@gnfc.in`;
+  const [localPart, domainPart] = preferredEmail.split("@");
+  const domain = domainPart || "gnfc.in";
+  let candidate = `${localPart}@${domain}`;
+  let suffix = 0;
 
-  // Check if any OTHER user already has this email
-  const existingWithEmail = await prisma.user.findFirst({
-    where: {
-      email: preferredEmail,
-      ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
-    },
-  });
+  // Add a max iteration limit to prevent infinite loops
+  const MAX_ITERATIONS = 1000;
+  while (suffix < MAX_ITERATIONS) {
+    const existingWithEmail = await prisma.user.findFirst({
+      where: {
+        email: candidate,
+        ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
+      },
+    });
 
-  if (!existingWithEmail) return preferredEmail;
+    if (!existingWithEmail) return candidate;
+    suffix += 1;
+    candidate = `${localPart}${suffix}@${domain}`;
+  }
 
-  // Conflict — append employee_no to disambiguate
-  console.warn(
-    `[SAMVAD_SYNC] Email conflict: "${preferredEmail}" already belongs to user #${existingWithEmail.id}. Using fallback for emp ${employee.employee_no}`,
-  );
-  return `${employee.employee_no}@gnfc.in`;
+  // Fallback: use employee_no as local part
+  return `${employee.employee_no}@${domain}`;
 };
 
 const ensureEmployeeUser = async (employee: any, hashedPassword: string, allowCreate = true) => {
   // ── Case 1: User already linked via employeeId ──
   const existingUser = await prisma.user.findUnique({ where: { employeeId: employee.id } });
   if (existingUser) {
-    if (existingUser.email !== employee.email) {
-      const safeEmail = await resolveSafeEmail(employee, existingUser.id);
+    const safeEmail = await resolveSafeEmail(employee, existingUser.id);
+    if (safeEmail !== normalizeEmail(existingUser.email || "")) {
       try {
         await prisma.user.update({
           where: { id: existingUser.id },
           data: { email: safeEmail },
         });
-        console.log(`[SAMVAD_SYNC] Updated email for user #${existingUser.id}: ${existingUser.email} → ${safeEmail}`);
+        log.info(`Updated email for user #${existingUser.id}: ${existingUser.email} → ${safeEmail}`);
       } catch (err: any) {
-        console.error(`[SAMVAD_SYNC] Failed to update email for user #${existingUser.id}:`, err.message);
+        log.error(`Failed to update email for user #${existingUser.id}:`, err.message);
       }
     }
     return false;
@@ -192,9 +247,9 @@ const ensureEmployeeUser = async (employee: any, hashedPassword: string, allowCr
   const username = employee.employee_no;
   const existingByUsername = await prisma.user.findUnique({ where: { username } });
   if (existingByUsername) {
-    const needsUpdate = !existingByUsername.employeeId || existingByUsername.email !== employee.email;
+    const safeEmail = await resolveSafeEmail(employee, existingByUsername.id);
+    const needsUpdate = !existingByUsername.employeeId || normalizeEmail(existingByUsername.email || "") !== safeEmail;
     if (needsUpdate) {
-      const safeEmail = await resolveSafeEmail(employee, existingByUsername.id);
       try {
         await prisma.user.update({
           where: { id: existingByUsername.id },
@@ -203,9 +258,9 @@ const ensureEmployeeUser = async (employee: any, hashedPassword: string, allowCr
             email: safeEmail,
           },
         });
-        console.log(`[SAMVAD_SYNC] Linked user #${existingByUsername.id} to employee #${employee.id}, email: ${safeEmail}`);
+        log.info(`Linked user #${existingByUsername.id} to employee #${employee.id}, email: ${safeEmail}`);
       } catch (err: any) {
-        console.error(`[SAMVAD_SYNC] Failed to link user #${existingByUsername.id} to employee:`, err.message);
+        log.error(`Failed to link user #${existingByUsername.id} to employee:`, err.message);
       }
     }
     return false;
@@ -221,6 +276,7 @@ const ensureEmployeeUser = async (employee: any, hashedPassword: string, allowCr
         password: hashedPassword,
         role: "RECOMMENDING_EMPLOYEE",
         employeeId: employee.id,
+        designation: employee.designation,
       },
     });
     console.log(`[SAMVAD_SYNC] Created user "${username}" with email: ${safeEmail}`);
@@ -231,10 +287,14 @@ const ensureEmployeeUser = async (employee: any, hashedPassword: string, allowCr
   }
 };
 
-export const runSyncJob = async () => {
-  console.log("Starting SAMVAD Employee Sync...");
+export const runSyncJob = async (syncRunId?: string) => {
+  const runId = syncRunId || generateSyncRunId();
+  console.log(`Starting SAMVAD Employee Sync (Run: ${runId})...`);
+  await logSyncEvent("INFO", "Starting SAMVAD Employee Sync", { runId }, runId);
+
   let updatedCount = 0;
   let createdUserCount = 0;
+  let skippedCount = 0;
 
   const hashedPassword = CREATE_EMPLOYEE_USERS ? await bcrypt.hash(EMPLOYEE_DEFAULT_PASSWORD, 10) : "";
 
@@ -250,6 +310,13 @@ export const runSyncJob = async () => {
 
       for (const emp of batchResults) {
         if (emp) {
+          // Skip inactive employees
+          if (!emp.active) {
+            skippedCount++;
+            await logSyncEvent("INFO", `Skipped inactive employee`, { empId: emp.employee_no, status: emp.status }, runId);
+            continue;
+          }
+
           try {
             const savedEmployee = await prisma.employee.upsert({
               where: { employee_no: emp.employee_no },
@@ -258,9 +325,15 @@ export const runSyncJob = async () => {
                 department: emp.department,
                 designation: emp.designation,
                 email: emp.email,
-                active: true,
+                status: emp.status,
+                contact_no: emp.contact_no,
+                active: emp.active,
               },
-              create: emp,
+              create: {
+                ...emp,
+                status: emp.status,
+                contact_no: emp.contact_no,
+              },
             });
             updatedCount++;
 
@@ -270,24 +343,32 @@ export const runSyncJob = async () => {
             }
           } catch (dbError: any) {
             logError(`DB upsert for EmpId ${emp.employee_no}`, dbError);
+            await logSyncEvent("ERROR", `DB upsert failed`, { empId: emp.employee_no, error: dbError.message }, runId);
           }
         }
       }
 
       if ((i - 1 + BATCH_SIZE) % 1000 === 0) {
         console.log(`Processed up to EmpId ${i - 1 + BATCH_SIZE}`);
+        await logSyncEvent("INFO", `Progress update`, { processedUpTo: i - 1 + BATCH_SIZE }, runId);
       }
     }
   } catch (err) {
     logError("runSyncJob main loop", err);
+    await logSyncEvent("ERROR", "Sync job failed", { error: String(err) }, runId);
   }
 
-  console.log(`SAMVAD Employee Sync completed. Updated ${updatedCount} records. Created ${createdUserCount} employee users.`);
+  console.log(
+    `SAMVAD Employee Sync completed. Updated ${updatedCount} records. Created ${createdUserCount} employee users. Skipped ${skippedCount} inactive.`,
+  );
+  await logSyncEvent("INFO", "SAMVAD Employee Sync completed", { updatedCount, createdUserCount, skippedCount }, runId);
 
   return {
     updatedCount,
     createdUserCount,
+    skippedCount,
     createEmployeeUsers: CREATE_EMPLOYEE_USERS,
+    runId,
   };
 };
 

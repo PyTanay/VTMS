@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../api";
 
 interface ReportDef {
@@ -23,6 +24,7 @@ const REPORT_LIST: ReportDef[] = [
 ];
 
 const Reports: React.FC = () => {
+  const navigate = useNavigate();
   const [selectedReport, setSelectedReport] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -66,6 +68,53 @@ const Reports: React.FC = () => {
       setColumns([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAppClick = (appId: number) => {
+    navigate(`/applications/${appId}`);
+  };
+
+  const renderCell = (row: Record<string, any>, col: string) => {
+    // Handle Applications column (array of {id, no, student})
+    if (col === "Applications" && Array.isArray(row[col])) {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          {row[col].map((app: { id: number; no: string; student: string }) => (
+            <span
+              key={app.id}
+              onClick={() => handleAppClick(app.id)}
+              style={{
+                cursor: "pointer",
+                color: "var(--primary-accent)",
+                textDecoration: "underline",
+                fontSize: "13px",
+              }}
+            >
+              {app.no} ({app.student})
+            </span>
+          ))}
+        </div>
+      );
+    }
+    return row[col] ?? "-";
+  };
+
+  const handleCellClick = (row: Record<string, any>, col: string) => {
+    // Make App No cells clickable to navigate to application details
+    if (col === "App No" && row["App No"]) {
+      // Fetch application by application_no to get ID
+      api
+        .get(`/applications?search=${row["App No"]}&perPage=1`)
+        .then((res) => {
+          const apps = res.data?.data || [];
+          if (apps.length > 0) {
+            navigate(`/applications/${apps[0].id}`);
+          }
+        })
+        .catch(() => {
+          // Silently fail if we can't fetch
+        });
     }
   };
 
@@ -143,7 +192,9 @@ const Reports: React.FC = () => {
                       {data.map((row, idx) => (
                         <tr key={idx}>
                           {columns.map((col) => (
-                            <td key={col}>{row[col] ?? "-"}</td>
+                            <td key={col} onClick={() => handleCellClick(row, col)}>
+                              {renderCell(row, col)}
+                            </td>
                           ))}
                         </tr>
                       ))}

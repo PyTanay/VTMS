@@ -13,7 +13,7 @@ interface MasterItem {
 
 const ApplicationForm: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const {} = useAuth();
   const [applicantType, setApplicantType] = useState("EMPLOYEE_WARD");
   const [studentName, setStudentName] = useState("");
   const [studentSurname, setStudentSurname] = useState("");

@@ -99,12 +99,12 @@ const MyTasks: React.FC = () => {
         <div className="panel-body">
           <h2 style={{ margin: 0, fontSize: "18px" }}>My Tasks</h2>
           <p style={{ color: "var(--text-secondary)", marginTop: "4px", fontSize: "14px" }}>
-            Welcome back, {user?.username}. Here are your pending workflow items.
+            Welcome back, {user?.employee?.name || user?.username}. Here are your pending workflow items.
           </p>
         </div>
       </div>
       <div className="stats-grid">
-        {(user?.role === "ADMIN" || user?.role === "TRAINING_CENTER_SECTION_HEAD") && (
+        {(user?.role === "ADMIN" || user?.role === "TRAINING_CENTER_SECTION_HEAD" || user?.role === "TRAINING_IN_CHARGE") && (
           <TaskCard
             title="Pending Scrutiny"
             count={pendingScrutiny.length}
@@ -113,7 +113,7 @@ const MyTasks: React.FC = () => {
             color="#f59e0b"
           />
         )}
-        {(user?.role === "ADMIN" || user?.role === "TRAINING_IN_CHARGE") && (
+        {(user?.role === "ADMIN" || user?.role === "TRAINING_IN_CHARGE" || user?.role === "TRAINING_CENTER_SECTION_HEAD") && (
           <>
             <TaskCard
               title="Permission Letters"

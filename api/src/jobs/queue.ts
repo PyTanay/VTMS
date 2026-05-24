@@ -1,6 +1,9 @@
 import { sendEmail } from "../utils/email";
 import pdfService from "../services/pdf.service";
 import prisma from "../prisma";
+import { logger } from "../utils/logger";
+
+const log = logger.child("QUEUE");
 
 type Job = { id: number; type: string; payload: any };
 
@@ -11,6 +14,7 @@ let running = false;
 export const enqueue = (type: string, payload: any) => {
   const job: Job = { id: nextId++, type, payload };
   queue.push(job);
+  log.info("Job enqueued", { jobId: job.id, type });
   process.nextTick(() => run());
   return job.id;
 };
@@ -21,6 +25,7 @@ const run = async () => {
   while (queue.length) {
     const job = queue.shift();
     if (!job) break;
+    log.info("Processing job", { jobId: job.id, type: job.type });
     try {
       if (job.type === "sendEmail") {
         await sendEmail(job.payload.to, job.payload.subject, job.payload.html);
@@ -28,6 +33,7 @@ const run = async () => {
         await prisma.emailLog.create({
           data: { to_email: job.payload.to, subject: job.payload.subject, body: job.payload.html, sent_status: true },
         });
+        log.info("Email sent via queue", { jobId: job.id, to: job.payload.to });
       }
       if (job.type === "generatePermissionPdf") {
         const { applicationId, ref } = job.payload;
@@ -39,11 +45,12 @@ const run = async () => {
             where: { id: applicationId },
             data: { permission_letter_ref: ref, permission_letter_date: new Date() },
           });
+          log.info("Permission PDF generated via queue", { jobId: job.id, applicationId, ref, filename: pdf.filename });
         }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error("Job failed", job, err);
+      log.error(`Job failed: ${job.type}`, err, { jobId: job.id, payload: job.payload });
       // Log queue failures to DB
       try {
         await prisma.emailLog.create({
@@ -55,16 +62,16 @@ const run = async () => {
           },
         });
       } catch (logErr) {
-        console.error("Failed to log queue error to DB", logErr);
+        log.error("Failed to log queue error to DB", logErr);
       }
     }
   }
   running = false;
+  log.info("Queue processing complete");
 };
 
 export const startQueue = () => {
-  // nothing to do for in-process queue; placeholder to keep API stable
-  console.log("In-process job queue initialized");
+  log.info("In-process job queue initialized");
 };
 
 export default { enqueue, startQueue };

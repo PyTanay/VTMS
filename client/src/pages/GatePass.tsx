@@ -5,7 +5,6 @@ interface ApplicationItem {
   id: number;
   application_no: string;
   student_name: string;
-  college_name?: string;
   status: string;
 }
 
@@ -81,7 +80,6 @@ const GatePass: React.FC = () => {
             <h2 style={{ margin: 0, fontSize: "18px" }}>Gate Pass Management</h2>
             <span style={{ color: "var(--text-secondary)", fontSize: "13px" }}>{applications.length} eligible</span>
           </div>
-
           {applications.length === 0 ? (
             <p style={{ color: "var(--text-secondary)" }}>No eligible applications for gate pass.</p>
           ) : (
@@ -91,7 +89,6 @@ const GatePass: React.FC = () => {
                   <tr>
                     <th>App No</th>
                     <th>Student</th>
-                    <th>College</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -101,7 +98,6 @@ const GatePass: React.FC = () => {
                     <tr key={app.id}>
                       <td>{app.application_no}</td>
                       <td style={{ fontWeight: 500 }}>{app.student_name}</td>
-                      <td style={{ color: "var(--text-secondary)" }}>{app.college_name || "-"}</td>
                       <td>
                         <span className="badge badge-default">{app.status}</span>
                       </td>

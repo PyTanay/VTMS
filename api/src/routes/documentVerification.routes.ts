@@ -1,11 +1,11 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import prisma from "../prisma";
 import { authenticate, AuthRequest } from "../middleware/auth";
 
 export const documentVerificationRouter = Router();
 documentVerificationRouter.use(authenticate);
 
-// GET / — List all document verifications with search/filter
+// GET / â€” List all document verifications with search/filter
 documentVerificationRouter.get("/", async (req: AuthRequest, res, next) => {
   try {
     const { search, verified, doc_type, applicationId, page = "1", perPage = "50" } = req.query as any;
@@ -27,7 +27,7 @@ documentVerificationRouter.get("/", async (req: AuthRequest, res, next) => {
         where,
         include: {
           application: { select: { id: true, application_no: true, student_name: true, student_surname: true } },
-          verified_by: { select: { id: true, username: true } },
+          user: { select: { id: true, username: true } },
         },
         orderBy: { id: "desc" },
         skip: (pageNumber - 1) * pageSize,
@@ -67,7 +67,7 @@ documentVerificationRouter.get("/application/:applicationId", async (req, res, n
       where: { applicationId },
       include: {
         application: { select: { id: true, application_no: true, student_name: true } },
-        verified_by: { select: { id: true, username: true } },
+        user: { select: { id: true, username: true } },
       },
     });
     res.json({ success: true, data: items });
@@ -76,7 +76,7 @@ documentVerificationRouter.get("/application/:applicationId", async (req, res, n
   }
 });
 
-// GET /doc-types — list distinct document types for filter dropdown
+// GET /doc-types â€” list distinct document types for filter dropdown
 documentVerificationRouter.get("/doc-types", async (_req, res, next) => {
   try {
     const result = await prisma.documentVerification.findMany({
@@ -97,10 +97,10 @@ documentVerificationRouter.patch("/:id/verify", async (req: AuthRequest, res, ne
     const verifiedBy = req.user?.id;
     const updated = await prisma.documentVerification.update({
       where: { id },
-      data: { verified: true, verified_by_id: verifiedBy, verified_at: new Date(), remarks: req.body.remarks || undefined },
+      data: { verified: true, user_id: verifiedBy, verified_at: new Date(), remarks: req.body.remarks || undefined },
       include: {
         application: { select: { id: true, application_no: true, student_name: true, status: true } },
-        verified_by: { select: { id: true, username: true } },
+        user: { select: { id: true, username: true } },
       },
     });
 

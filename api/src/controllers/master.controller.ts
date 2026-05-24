@@ -257,3 +257,38 @@ export const deleteDistrict = generateDelete("districts");
 export const deleteTaluka = generateDelete("talukas");
 export const deleteCity = generateDelete("cities");
 export const deleteDepartment = generateDelete("departments");
+
+// ──────────────────────────────────────────
+// Seed departments from employee data
+// ──────────────────────────────────────────
+export const seedDepartmentsFromEmployees = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Get distinct departments from employees
+    const employeeDepts = await prisma.employee.findMany({
+      select: { department: true },
+      distinct: ["department"],
+    });
+
+    const deptNames = employeeDepts.map((e) => e.department).filter((d): d is string => Boolean(d));
+    let created = 0;
+    let skipped = 0;
+
+    for (const deptName of deptNames) {
+      const existing = await prisma.department.findFirst({
+        where: { department_name: { equals: deptName, mode: "insensitive" } },
+      });
+      if (!existing) {
+        await prisma.department.create({
+          data: { department_name: deptName },
+        });
+        created++;
+      } else {
+        skipped++;
+      }
+    }
+
+    res.json({ success: true, data: { created, skipped, total: deptNames.length } });
+  } catch (error) {
+    next(error);
+  }
+};

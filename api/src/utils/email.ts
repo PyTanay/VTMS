@@ -4,6 +4,9 @@ import handlebars from "handlebars";
 import fs from "fs";
 import path from "path";
 import prisma from "../prisma";
+import { logger } from "./logger";
+
+const log = logger.child("EMAIL");
 
 // ── Config with validation & fallback ──
 const SMTP_HOST = process.env.SMTP_HOST || "";
@@ -15,7 +18,6 @@ const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER || "noreply@gnfc.in";
 
 // ── Dev Mode: redirect all emails to dev inbox ──
 const DEV_EMAIL = process.env.DEV_EMAIL || "tjdesai@gnfc.in";
-const EMAIL_REDIRECT_MODE = process.env.EMAIL_REDIRECT_MODE === "true";
 const EMAIL_ENABLED = process.env.EMAIL_ENABLED !== "false"; // default true
 
 // ── Lazy transporter creation (so we don't fail on startup if SMTP is down) ──
@@ -25,7 +27,7 @@ let emailConfigured = false;
 const getTransporter = (): nodemailer.Transporter | null => {
   if (transporter) return transporter;
   if (!SMTP_HOST) {
-    console.warn("[EMAIL] SMTP_HOST not configured. Email sending is disabled.");
+    log.warn("SMTP_HOST not configured. Email sending is disabled.");
     return null;
   }
   transporter = nodemailer.createTransport({
@@ -49,7 +51,7 @@ const templateDir = path.join(__dirname, "..", "templates");
 const compileTemplate = (templateName: string): Handlebars.TemplateDelegate => {
   const filePath = path.join(templateDir, `${templateName}.hbs`);
   if (!fs.existsSync(filePath)) {
-    console.warn(`[EMAIL] Template not found: ${filePath}`);
+    log.warn(`Template not found: ${filePath}`);
     return (data: any) => `<p>${JSON.stringify(data)}</p>`;
   }
   const source = fs.readFileSync(filePath, "utf-8");
@@ -60,10 +62,22 @@ const approvalTemplate = compileTemplate("approval-request");
 const permissionLetterTemplate = compileTemplate("permission-letter-notification");
 const noDueClearanceTemplate = compileTemplate("no-due-clearance");
 
+// Check if dev mode is enabled from database
+const isDevModeEnabled = async (): Promise<boolean> => {
+  try {
+    const config = await prisma.emailConfig.findUnique({ where: { type: "GLOBAL" } });
+    return (config as any)?.dev_mode ?? false;
+  } catch {
+    return false;
+  }
+};
+
 export const sendEmail = async (to: string, subject: string, html: string, type?: string): Promise<boolean> => {
+  const emailLogMeta: Record<string, any> = { to, subject, type };
+
   // Check global email toggle
   if (!EMAIL_ENABLED) {
-    console.log(`[EMAIL] Globally disabled. Skipping send to ${to}. Subject: ${subject}`);
+    log.info("Globally disabled — skipping send", emailLogMeta);
     return false;
   }
 
@@ -71,12 +85,12 @@ export const sendEmail = async (to: string, subject: string, html: string, type?
   try {
     const emp = await prisma.employee.findFirst({ where: { email: to, receive_emails: false } });
     if (emp) {
-      console.log(`[EMAIL] Employee ${emp.name} (${emp.employee_no}) has opted out of emails. Skipping send to ${to}.`);
+      log.info(`Employee ${emp.name} (${emp.employee_no}) opted out — skipping`, emailLogMeta);
       return false;
     }
   } catch {
     // If DB query fails, allow send through (fail open)
-    console.warn(`[EMAIL] Could not check employee suppression for ${to}, proceeding with send.`);
+    log.warn("Could not check employee suppression, proceeding with send", emailLogMeta);
   }
 
   // Check per-type email config
@@ -84,26 +98,26 @@ export const sendEmail = async (to: string, subject: string, html: string, type?
     try {
       const config = await prisma.emailConfig.findUnique({ where: { type } });
       if (config && !config.enabled) {
-        console.log(`[EMAIL] Type "${type}" disabled in config. Skipping send to ${to}.`);
+        log.info(`Type "${type}" disabled in config — skipping`, emailLogMeta);
         return false;
       }
     } catch {
-      // If DB query fails, allow send through (fail open)
-      console.warn(`[EMAIL] Could not check config for type "${type}", proceeding with send.`);
+      log.warn(`Could not check config for type "${type}", proceeding with send`, emailLogMeta);
     }
   }
 
   const t = getTransporter();
   if (!t) {
-    console.log(`[EMAIL] Skipping send to ${to} (SMTP not configured). Subject: ${subject}`);
+    log.info("SMTP not configured — skipping", emailLogMeta);
     return false;
   }
 
   // Dev mode: redirect all emails to DEV_EMAIL
   let actualRecipient = to;
-  if (EMAIL_REDIRECT_MODE) {
+  const devMode = await isDevModeEnabled();
+  if (devMode) {
     actualRecipient = DEV_EMAIL;
-    console.log(`[EMAIL] DEV MODE: Redirecting email intended for ${to} to ${DEV_EMAIL}`);
+    log.info(`DEV MODE: Redirecting email to ${DEV_EMAIL} (original: ${to})`, { originalTo: to });
     // Append original recipient info to subject for debugging
     subject = `[DEV MODE → ${to}] ${subject}`;
   }
@@ -115,12 +129,14 @@ export const sendEmail = async (to: string, subject: string, html: string, type?
       subject,
       html,
     });
-    console.log(
-      `[EMAIL] Sent to ${actualRecipient}${actualRecipient !== to ? ` (originally intended for ${to})` : ""}: ${info.messageId}`,
-    );
+    log.info(`Email sent to ${actualRecipient}`, {
+      messageId: info.messageId,
+      originalTo: actualRecipient !== to ? to : undefined,
+      subject,
+    });
     return true;
   } catch (error: any) {
-    console.error(`[EMAIL] Error sending to ${actualRecipient}:`, error?.code || error?.message || error);
+    log.error(`Error sending to ${actualRecipient}`, error, { code: error?.code });
     return false;
   }
 };
@@ -152,6 +168,7 @@ export const sendApprovalEmail = async (
     approveLink,
     rejectLink,
   });
+  log.info("Sending approval request email", { to, studentName, applicationNo });
   return sendEmail(to, `Action Required: Vocational Training Request for ${studentName}`, html);
 };
 
@@ -169,6 +186,7 @@ export const sendPermissionLetterNotification = async (
     collegeName: collegeName || "-",
     issuedOn: new Date().toLocaleDateString(),
   });
+  log.info("Sending permission letter notification", { to, studentName, applicationNo, permissionRef });
   return sendEmail(to, `Permission Letter Issued — ${applicationNo}`, html);
 };
 
@@ -179,6 +197,7 @@ export const sendNoDueClearanceNotification = async (to: string, studentName: st
     noDueRef,
     completedOn: new Date().toLocaleDateString(),
   });
+  log.info("Sending no-due clearance notification", { to, studentName, applicationNo, noDueRef });
   return sendEmail(to, `No Due Clearance Completed — ${applicationNo}`, html);
 };
 
@@ -187,8 +206,10 @@ export const testEmailConnection = async (): Promise<{ ok: boolean; message: str
   if (!t) return { ok: false, message: "SMTP not configured" };
   try {
     await t.verify();
+    log.info("SMTP connection verified");
     return { ok: true, message: "SMTP connection verified" };
   } catch (error: any) {
+    log.error("SMTP connection verification failed", error);
     return { ok: false, message: `SMTP error: ${error?.code || error?.message || "Unknown"}` };
   }
 };

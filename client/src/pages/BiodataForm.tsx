@@ -11,7 +11,7 @@ const BiodataForm: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [editMode, setEditMode] = useState(false);
-  const [activeSection, setActiveSection] = useState("view");
+  // const [activeSection, setActiveSection] = useState("view");
 
   // All form fields
   const [localAddress, setLocalAddress] = useState("");
@@ -141,6 +141,7 @@ const BiodataForm: React.FC = () => {
     onAdd,
     onRemove,
     edit,
+    // fieldLabels,
   }: {
     title: string;
     items: any[];
@@ -148,6 +149,7 @@ const BiodataForm: React.FC = () => {
     onAdd: () => void;
     onRemove: (i: number) => void;
     edit: boolean;
+    fieldLabels?: Record<string, string>;
   }) => (
     <div className="panel" style={{ marginBottom: "16px" }}>
       <div className="panel-body">

@@ -13,13 +13,13 @@ biodataRouter.get("/:applicationId", async (req, res, next) => {
     const biodata = await prisma.biodataForm.findUnique({
       where: { applicationId },
       include: {
-        academics: true,
-        otherTrainings: true,
-        sports: true,
-        extracurriculars: true,
-        familyMembers: true,
-        gnfcRelatives: true,
-        postings: true,
+        biodata_academics: true,
+        biodata_other_trainings: true,
+        biodata_sports: true,
+        biodata_extracurriculars: true,
+        biodata_family_members: true,
+        biodata_gnfc_relatives: true,
+        biodata_postings: true,
       },
     });
     res.json({ success: true, data: biodata });
@@ -69,14 +69,14 @@ biodataRouter.post("/", async (req: AuthRequest, res, next) => {
       const updated = await prisma.biodataForm.update({
         where: { id: existing.id },
         data: payload,
-        include: { academics: true, familyMembers: true, postings: true },
+        include: { biodata_academics: true, biodata_family_members: true, biodata_postings: true },
       });
       return res.json({ success: true, data: updated });
     }
 
     const created = await prisma.biodataForm.create({
       data: { applicationId: Number(applicationId), ...payload },
-      include: { academics: true, familyMembers: true, postings: true },
+      include: { biodata_academics: true, biodata_family_members: true, biodata_postings: true },
     });
     res.status(201).json({ success: true, data: created });
   } catch (error) {
@@ -196,13 +196,13 @@ biodataRouter.put("/:applicationId", async (req: AuthRequest, res, next) => {
     const result = await prisma.biodataForm.findUnique({
       where: { id: biodata.id },
       include: {
-        academics: true,
-        otherTrainings: true,
-        sports: true,
-        extracurriculars: true,
-        familyMembers: true,
-        gnfcRelatives: true,
-        postings: true,
+        biodata_academics: true,
+        biodata_other_trainings: true,
+        biodata_sports: true,
+        biodata_extracurriculars: true,
+        biodata_family_members: true,
+        biodata_gnfc_relatives: true,
+        biodata_postings: true,
       },
     });
 

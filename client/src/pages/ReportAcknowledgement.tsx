@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import api from "../api";
 import { useAuth } from "../context/AuthContext";
 
@@ -15,7 +14,6 @@ interface AppItem {
 }
 
 const ReportAcknowledgement: React.FC = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [applications, setApplications] = useState<AppItem[]>([]);
   const [loading, setLoading] = useState(true);

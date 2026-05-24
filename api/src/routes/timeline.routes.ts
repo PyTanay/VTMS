@@ -102,11 +102,14 @@ timelineRouter.get("/applications/:id/timeline", async (req: AuthRequest, res, n
       });
     }
 
-    // Mark current status
+    // Mark current status - find the last entry with the current status
     const currentStatus = application.status;
-    const currentEntry = timeline.find((t) => t.status === currentStatus);
-    if (currentEntry) {
-      currentEntry.isCurrent = true;
+    // Find the last occurrence of current status in timeline
+    for (let i = timeline.length - 1; i >= 0; i--) {
+      if (timeline[i].status === currentStatus) {
+        timeline[i].isCurrent = true;
+        break;
+      }
     }
 
     // Build all possible statuses for the full workflow view

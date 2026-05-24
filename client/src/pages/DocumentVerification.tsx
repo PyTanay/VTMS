@@ -18,7 +18,7 @@ interface DocItem {
 
 const DocumentVerification: React.FC = () => {
   const { user } = useAuth();
-  const [allDocs, setAllDocs] = useState<DocItem[]>([]);
+  // const [allDocs, setAllDocs] = useState<DocItem[]>([]);
   const [filteredDocs, setFilteredDocs] = useState<DocItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -45,7 +45,7 @@ const DocumentVerification: React.FC = () => {
 
       const res = await api.get(`/document-verification?${params.toString()}`);
       const data = res.data.data || [];
-      setAllDocs(data);
+      // setAllDocs(data);
       setFilteredDocs(data);
       setTotal(res.data.total || data.length);
     } catch {
