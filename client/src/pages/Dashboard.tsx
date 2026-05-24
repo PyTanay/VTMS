@@ -45,9 +45,9 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [statsRes, employeesRes, usersRes, appsRes, siteStatsRes] = await Promise.all([
+        const [statsRes, activeEmployeesRes, usersRes, appsRes, siteStatsRes] = await Promise.all([
           api.get("/applications/stats"),
-          api.get("/employees", { params: { perPage: 5000 } }),
+          api.get("/employees/meta/active-count"),
           api.get("/users"),
           api.get("/applications"),
           api.get("/applications/site-stats"),
@@ -73,13 +73,9 @@ const Dashboard: React.FC = () => {
           (a: any) => a.status === "CERTIFICATE_ISSUED" || a.status === "NO_DUES_PENDING",
         ).length;
 
-        // Count only active employees
-        const allEmployees = employeesRes.data.data || [];
-        const activeEmployeesCount = allEmployees.filter((e: any) => e.active).length;
-
         setStats({
           ...statsRes.data.data,
-          activeEmployees: activeEmployeesCount,
+          activeEmployees: activeEmployeesRes.data.data || 0,
           totalUsers: usersRes.data.data?.length || 0,
           pendingScrutiny: pendingScrutinyCount,
           pendingPermission: pendingPermissionCount,
@@ -160,7 +156,7 @@ const Dashboard: React.FC = () => {
           accent="var(--primary-accent)"
           onClick={() => navigate("/applications")}
         />
-        <StatCard label="Active Trainees" value={stats.activeTrainees} accent="#ec4899" />
+        <StatCard label="Active Trainees" value={stats.activeTrainees} accent="#ec4895" />
         <StatCard label="Departments" value={stats.totalDepartments} accent="#10b981" />
         <StatCard label="Active Employees" value={stats.activeEmployees} accent="#8b5cf6" />
         <StatCard label="Registered Users" value={stats.totalUsers} accent="#f59e0b" onClick={() => navigate("/users")} />

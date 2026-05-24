@@ -255,22 +255,22 @@ applicationRouter.get("/:id", async (req, res, next) => {
         employee: true,
         department: true,
         document_verifications: true,
-        biodata: {
+        biodata_form: {
           include: {
-            academics: true,
-            otherTrainings: true,
-            sports: true,
-            extracurriculars: true,
-            familyMembers: true,
-            gnfcRelatives: true,
-            postings: true,
+            biodata_academics: true,
+            biodata_other_trainings: true,
+            biodata_sports: true,
+            biodata_extracurriculars: true,
+            biodata_family_members: true,
+            biodata_gnfc_relatives: true,
+            biodata_postings: true,
           },
         },
         certificates: true,
-        noDueForm: {
-          include: { lines: true },
+        no_due_form: {
+          include: { no_due_clearance_lines: true },
         },
-        postingLetterStudents: true,
+        posting_letter_students: true,
       },
     });
 

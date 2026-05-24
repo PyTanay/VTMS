@@ -6,6 +6,7 @@ interface TimelineEntry {
   timestamp: string;
   duration?: string;
   isCurrent: boolean;
+  isExecuted: boolean;
   user: {
     id: number;
     username: string;
@@ -76,6 +77,7 @@ const STATUS_COLORS: Record<string, { bg: string; dot: string; text: string }> =
 };
 
 const formatDate = (ts: string): string => {
+  if (!ts) return "";
   const d = new Date(ts);
   return d.toLocaleDateString("en-IN", {
     day: "numeric",
@@ -163,6 +165,12 @@ const WorkflowTimeline: React.FC<Props> = ({ applicationId }) => {
             const label = STATUS_LABELS[entry.status] || entry.status.replace(/_/g, " ");
             const isLast = index === data.timeline.length - 1;
 
+            // Determine opacity and styling based on execution status
+            const isPending = !entry.isExecuted;
+            const opacity = isPending ? 0.5 : entry.isCurrent ? 1 : 0.8;
+            const cardBg = isPending ? "var(--default-bg)" : entry.isCurrent ? "var(--nav-active-bg)" : "transparent";
+            const cardBorder = `1px solid ${isPending ? "var(--border-color)" : entry.isCurrent ? colors.dot : "transparent"}`;
+
             return (
               <div
                 key={index}
@@ -170,7 +178,7 @@ const WorkflowTimeline: React.FC<Props> = ({ applicationId }) => {
                   position: "relative",
                   marginBottom: isLast ? 0 : "16px",
                   paddingLeft: "16px",
-                  opacity: entry.isCurrent ? 1 : 0.7,
+                  opacity,
                 }}
               >
                 {/* Dot */}
@@ -182,7 +190,7 @@ const WorkflowTimeline: React.FC<Props> = ({ applicationId }) => {
                     width: entry.isCurrent ? "16px" : "12px",
                     height: entry.isCurrent ? "16px" : "12px",
                     borderRadius: "50%",
-                    background: colors.dot,
+                    background: isPending ? "#9ca3af" : colors.dot,
                     border: entry.isCurrent ? "3px solid #fff" : "2px solid #fff",
                     boxShadow: entry.isCurrent ? `0 0 0 3px ${colors.dot}40` : "none",
                     zIndex: 1,
@@ -192,10 +200,10 @@ const WorkflowTimeline: React.FC<Props> = ({ applicationId }) => {
                 {/* Card */}
                 <div
                   style={{
-                    background: entry.isCurrent ? "var(--nav-active-bg)" : "transparent",
-                    border: `1px solid ${entry.isCurrent ? colors.dot : "transparent"}`,
+                    background: cardBg,
+                    border: cardBorder,
                     borderRadius: "8px",
-                    padding: entry.isCurrent ? "10px 14px" : "0",
+                    padding: entry.isCurrent || !isPending ? "10px 14px" : "8px 12px",
                   }}
                 >
                   <div
@@ -211,18 +219,19 @@ const WorkflowTimeline: React.FC<Props> = ({ applicationId }) => {
                         style={{
                           fontSize: "13px",
                           fontWeight: entry.isCurrent ? 700 : 500,
-                          color: colors.text,
-                          background: colors.bg,
+                          color: isPending ? "var(--text-secondary)" : colors.text,
+                          background: isPending ? "var(--nav-hover)" : colors.bg,
                           padding: "2px 8px",
                           borderRadius: "4px",
                         }}
                       >
                         {label}
                         {entry.isCurrent ? " ← Current" : ""}
+                        {isPending ? " ⏳" : ""}
                       </span>
                       <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{formatDate(entry.timestamp)}</span>
                     </div>
-                    {entry.duration && (
+                    {entry.duration && !isPending && (
                       <span
                         style={{
                           fontSize: "11px",
@@ -237,10 +246,13 @@ const WorkflowTimeline: React.FC<Props> = ({ applicationId }) => {
                       </span>
                     )}
                   </div>
-                  {entry.user && (
+                  {entry.user && !isPending && (
                     <div style={{ marginTop: "4px", fontSize: "11px", color: "var(--text-secondary)" }}>
                       by {entry.user.employeeName || entry.user.username} ({entry.user.role.replace(/_/g, " ")})
                     </div>
+                  )}
+                  {isPending && (
+                    <div style={{ marginTop: "4px", fontSize: "11px", color: "var(--text-secondary)" }}>⏳ Not yet reached</div>
                   )}
                 </div>
               </div>

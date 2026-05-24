@@ -41,6 +41,17 @@ const AccountSettings: React.FC = () => {
             <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>Department</span>
             <span>{user?.employee?.department || "-"}</span>
 
+            <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>Status</span>
+            <span>
+              {user?.employee?.status ? (
+                <span className={`badge ${user.employee.status === "ACTIVE" ? "badge-success" : "badge-warning"}`}>
+                  {user.employee.status}
+                </span>
+              ) : (
+                "-"
+              )}
+            </span>
+
             <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>Email</span>
             <span>
               {editingEmail ? (

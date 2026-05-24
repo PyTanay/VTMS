@@ -1,10 +1,15 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../prisma";
 
+// Paths to track as "visits" (page views) - only exact matches
+const TRACKED_PATHS = ["/api/applications", "/api/dashboard", "/api/health"];
+
 // Track site visits for analytics
 export const siteVisitMiddleware = async (req: Request, res: Response, next: NextFunction) => {
-  // Only track API requests (not static files, health checks, etc.)
-  if (req.path.startsWith("/api/") && req.method === "GET") {
+  // Only track specific API paths (not all GET requests)
+  const shouldTrack = TRACKED_PATHS.includes(req.path);
+
+  if (shouldTrack && req.method === "GET") {
     try {
       // Get user ID from auth if available (optional)
       const userId = (req as any).user?.id;

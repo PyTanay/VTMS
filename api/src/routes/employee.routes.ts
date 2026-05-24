@@ -115,3 +115,15 @@ employeeRouter.get("/meta/stats", async (_req, res, next) => {
     next(error);
   }
 });
+
+// Get count of active employees (status = "ACTIVE")
+employeeRouter.get("/meta/active-count", async (_req, res, next) => {
+  try {
+    const count = await prisma.employee.count({
+      where: { status: "ACTIVE" },
+    });
+    res.json({ success: true, data: count });
+  } catch (error) {
+    next(error);
+  }
+});

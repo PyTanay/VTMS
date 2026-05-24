@@ -51,6 +51,7 @@ timelineRouter.get("/applications/:id/timeline", async (req: AuthRequest, res, n
       user: { id: number; username: string; role: string; employeeName: string | null } | null;
       duration?: string;
       isCurrent: boolean;
+      isExecuted: boolean;
     }> = [];
 
     // Add "Created" as first step
@@ -59,6 +60,7 @@ timelineRouter.get("/applications/:id/timeline", async (req: AuthRequest, res, n
       timestamp: application.createdAt.toISOString(),
       user: null,
       isCurrent: false,
+      isExecuted: true,
     });
 
     // Process each transition
@@ -99,28 +101,53 @@ timelineRouter.get("/applications/:id/timeline", async (req: AuthRequest, res, n
           : null,
         duration,
         isCurrent: false,
+        isExecuted: true,
       });
+    }
+
+    // Get all workflow steps and build complete timeline
+    const allSteps = getWorkflowSteps();
+    const completeTimeline: typeof timeline = [];
+
+    // Track which steps have been executed
+    const executedStatuses = new Set(timeline.map((t) => t.status));
+
+    // Build complete timeline with all steps
+    for (let i = 0; i < allSteps.length; i++) {
+      const step = allSteps[i];
+      const executedEntry = timeline.find((t) => t.status === step);
+
+      if (executedEntry) {
+        // Step was executed - use the actual data
+        completeTimeline.push({ ...executedEntry });
+      } else {
+        // Step not yet executed - add placeholder
+        completeTimeline.push({
+          status: step,
+          timestamp: "",
+          user: null,
+          duration: undefined,
+          isCurrent: false,
+          isExecuted: false,
+        });
+      }
     }
 
     // Mark current status - find the last entry with the current status
     const currentStatus = application.status;
-    // Find the last occurrence of current status in timeline
-    for (let i = timeline.length - 1; i >= 0; i--) {
-      if (timeline[i].status === currentStatus) {
-        timeline[i].isCurrent = true;
+    for (let i = completeTimeline.length - 1; i >= 0; i--) {
+      if (completeTimeline[i].status === currentStatus) {
+        completeTimeline[i].isCurrent = true;
         break;
       }
     }
-
-    // Build all possible statuses for the full workflow view
-    const allStatuses = getWorkflowSteps();
 
     res.json({
       success: true,
       data: {
         currentStatus,
-        timeline,
-        allStatuses,
+        timeline: completeTimeline,
+        allStatuses: allSteps,
       },
     });
   } catch (error) {

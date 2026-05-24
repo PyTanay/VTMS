@@ -17,6 +17,7 @@ const userWithEmployeeSelect = {
       name: true,
       designation: true,
       department: true,
+      status: true,
     },
   },
 };
