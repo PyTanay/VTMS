@@ -191,15 +191,15 @@ Each step has a dedicated page in the sidebar with role-based visibility.
 
 ## 👥 User Roles & Access Matrix
 
-| Role                             | Can See                             | Can Do                                                    |
-| -------------------------------- | ----------------------------------- | --------------------------------------------------------- |
-| **ADMIN**                        | All applications, all data          | Full system control, user management, email config        |
-| **ED_GM_APPROVER**               | Applications assigned for approval  | Approve/reject applications in Approval Inbox             |
-| **TRAINING_CENTER_SECTION_HEAD** | All applications                    | Scrutiny queue, document verification, issue certificates |
-| **TRAINING_IN_CHARGE**           | All applications                    | Permission letters, gate pass, posting planner, biodata   |
-| **RECOMMENDING_EMPLOYEE**        | Only their own applications         | Submit/edit own applications                              |
-| **DEPARTMENT_HOD**               | Students posted in their department | View status, receive notifications                        |
-| **APPLICANT (Student)**          | Only their own application          | Submit application, upload docs, track status             |
+| Role                             | Can See                             | Can Do                                                  |
+| -------------------------------- | ----------------------------------- | ------------------------------------------------------- |
+| **ADMIN**                        | All applications, all data          | Full system control, user management, email config      |
+| **ED_GM_APPROVER**               | Applications assigned for approval  | Approve/reject applications in Approval Inbox           |
+| **TRAINING_CENTER_SECTION_HEAD** | All applications                    | Scrutiny queue, master management, assign in-charges    |
+| **TRAINING_IN_CHARGE**           | All applications                    | Permission letters, gate pass, posting planner, biodata |
+| **RECOMMENDING_EMPLOYEE**        | Only their own applications         | Submit/edit own applications                            |
+| **DEPARTMENT_HOD**               | Students posted in their department | View status, receive notifications                      |
+| **APPLICANT (Student)**          | Only their own application          | Submit application, upload docs, track status           |
 
 ---
 

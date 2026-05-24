@@ -1,327 +1,177 @@
-# VTMS — Comprehensive Implementation Todo List
+# VTMS - Task List & Implementation Roadmap
 
-## Legend
-
-- [x] = Already Implemented ✅
-- [ ] = Not started / Needs work
+## Project Status: 94% Complete (123/131 tasks)
 
 ---
 
-## ✅ PHASE 0: Documentation & Foundation
+## Phase 0: Documentation & Foundation
 
-- [x] **0.1** Update plan.md with comprehensive implementation status ✅
-- [x] **0.2** Fix GNFC Logo on Login Page — updated to use real GNFC leaf logo ✅
-- [x] **0.3** Implement Dark/Light Mode Toggle — ThemeContext + CSS variables + sidebar toggle button ✅
-- [x] **0.4** Verify all .env vars documented — added DEV_EMAIL, EMAIL_REDIRECT_MODE, EMAIL_ENABLED to .env.example ✅
-- [x] **0.5** Seed realistic test data — comprehensive seed script with states, colleges, departments, employees, users, applications at 5 workflow stages, email configs, and role mappings ✅
-
----
-
-## ✅ PHASE 1: Backend Transaction Flows
-
-- [x] **1.1** Scrutiny controller: GET/POST/PATCH `/api/scrutiny` with rejection reasons ✅
-- [x] **1.2** Employee controller: GET `/api/employees` with search/filter (name, department, code) ✅
-- [x] **1.3** Master Data CRUD: POST/PUT/DELETE for all 8 master entities ✅
-- [x] **1.4** Posting Letter PDF generation endpoint ✅
-- [x] **1.5** No Due PDF generation — `generateNoDuePdf` exists in pdfService.ts ✅
-- [x] **1.6** Handlebars email templates for notifications ✅
+| #   | Task                                | Details                                                | Backend       | Frontend       |
+| --- | ----------------------------------- | ------------------------------------------------------ | ------------- | -------------- |
+| 0.1 | **Update plan.md + README.md**      | Reflect current state, track progress                  | N/A           | N/A            |
+| 0.2 | **Fix GNFC Logo on Login Page**     | Logo not displaying — check path, import, base URL     | N/A           | ✅ Fix needed  |
+| 0.3 | **Dark/Light Mode Toggle**          | Theme switcher component with localStorage persistence | N/A           | ❌ New feature |
+| 0.4 | **Verify all .env vars documented** | Ensure .env.example covers all required vars           | ✅ Fix needed | N/A            |
+| 0.5 | **Seed realistic test data**        | Create comprehensive seed data for development/testing | ⚠️ Enhance    | N/A            |
 
 ---
 
-## ✅ PHASE 2: Frontend Transaction Pages
+## Phase 1: Critical — RBAC & Access Control
 
-- [x] **2.1** Permission Letter Management page ✅
-- [x] **2.2** Document Verification Management page ✅
-- [x] **2.3** Gate Pass print/management page ✅
-- [x] **2.4** Posting Planner page ✅
-- [x] **2.5** Certificate Composer page ✅
-- [x] **2.6** No Due Clearance page ✅
-
----
-
-## ✅ PHASE 3: Reports Module
-
-- [x] **3.1** All 13 report endpoints ✅
-- [x] **3.2** Date range filters on all reports ✅
-- [x] **3.3** CSV export on all reports ✅
-- [x] **3.4** Reports page with selector, filters, export buttons ✅
+| #   | Task                                   | Details                                                                       | Backend          | Frontend      |
+| --- | -------------------------------------- | ----------------------------------------------------------------------------- | ---------------- | ------------- |
+| 1.1 | **RBAC — Recommending Employee scope** | RECOMMENDING_EMPLOYEE role should only see applications they created          | ❌ New filter    | ❌ New filter |
+| 1.2 | **RBAC — Plant/Dept HOD scope**        | HODs should see students posted in their department only                      | ❌ New filter    | ❌ New filter |
+| 1.3 | **User Account Management**            | Delete/suspend/reactivate users; self-deactivation for recommending employees | ❌ New endpoints | ❌ New UI     |
+| 1.4 | **Designation→Role Mapping**           | Model + CRUD + apply-to-all                                                   | ❌ New           | ❌ New        |
 
 ---
 
-## ✅ PHASE 4: Cross-Cutting Business Rules
+## Phase 2: Online Application Portal & Client Validation
 
-- [x] **4.1** Eligibility validation in validation.service.ts ✅
-- [x] **4.2** Numbering.service.ts with branch encoding ✅
-- [x] **4.3** Audit Log viewer (GET endpoint + frontend page) ✅
-- [x] **4.4** Layout sidebar with all navigation items ✅
-- [x] **4.5** All frontend routes with ProtectedRoute wrappers ✅
-
----
-
-## ✅ PHASE 5: RBAC & Access Control
-
-### 5.1 Recommending Employee Data Scope
-
-- [x] **5.1.1** Backend: Add `recommending_employee_id` filter to application list query ✅
-- [x] **5.1.2** Backend: Auto-set `recommending_employee_id` from authenticated user ✅
-- [x] **5.1.3** Frontend: Filter application list display based on user role ✅
-
-### 5.2 Plant/Department HOD Scope ✅
-
-- [x] **5.2.1** Backend: Department-based scope filter for TRAINING_CENTER_SECTION_HEAD ✅
-- [x] **5.2.2** Backend: posting_department_id filter based on employee's department ✅
-- [x] **5.2.3** Frontend: Existing MyTasks + Dashboard serve as HOD view ✅
-
-### 5.3 User Account Management ✅
-
-- [x] **5.3.1** Backend: `active` field on User model ✅
-- [x] **5.3.2** Backend: `suspended` field on User model ✅
-- [x] **5.3.3** Backend: POST `/api/users/:id/deactivate` ✅
-- [x] **5.3.4** Backend: POST `/api/users/:id/reactivate` ✅
-- [x] **5.3.5** Backend: POST `/api/users/:id/suspend` ✅
-- [x] **5.3.6** Backend: DELETE `/api/users/:id` — soft delete ✅
-- [x] **5.3.7** Frontend: User management UI with suspend/delete/reactivate buttons ✅
-- [x] **5.3.8** Frontend: Account settings page + sidebar link ✅
-
-### 5.4 Designation → Role Mapping ✅
-
-- [x] **5.4.1** Backend: Create RoleMapping model in Prisma schema ✅
-- [x] **5.4.2** Backend: CRUD endpoints for role mappings ✅
-- [x] **5.4.3** Backend: POST `/api/roles/apply` apply designation→role ✅
-- [x] **5.4.4** Frontend: Role Assignment admin page UI ✅
+| #   | Task                                  | Details                                                         | Backend | Frontend    |
+| --- | ------------------------------------- | --------------------------------------------------------------- | ------- | ----------- |
+| 2.1 | **Online Application Portal**         | Student-facing external flow                                    | ❌ New  | ❌ New      |
+| 2.2 | **Client-Side Validation**            | Mirror all backend validation rules on frontend forms           | N/A     | ❌ New      |
+| 2.3 | **Replace Chrome Popups with Modals** | All browser-native popups replaced with custom modal components | N/A     | ❌ Refactor |
 
 ---
 
-## ✅ PHASE 6: Online Application Portal & Client Validation
+## Phase 3: Workflow Timeline & Internal Notes
 
-### 6.1 Online Application Portal (Student-Facing)
-
-- [x] **6.1.1** Backend: Public application endpoint (POST /api/public/applications) ✅
-- [x] **6.1.2** Backend: Public master data endpoint (GET /api/public/masters) ✅
-- [x] **6.1.3** Backend: Track application status (GET /api/public/track + detail) ✅
-- [x] **6.1.4** Frontend: StudentPortal page with Apply + Track tabs ✅
-- [ ] **6.1.5** Frontend: Student portal login — deferred (track-by-email replaces need)
-- [ ] **6.1.6** Frontend: Student dashboard — covered by Track tab in StudentPortal
-
-### 6.2 Client-Side Validation ✅
-
-- [x] **6.2.1** Create shared validation schema (validation.ts with helpers) ✅
-- [x] **6.2.2** Application form: eligibility rules validation ✅
-- [x] **6.2.3** Biodata form: required fields + numeric validators ✅
-- [x] **6.2.4** Permission letter form: required fields validation ✅
-- [x] **6.2.5** Real-time field validation helpers (getFieldError, hasFieldError, etc.) ✅
+| #   | Task                                      | Details                                                | Backend                  | Frontend  |
+| --- | ----------------------------------------- | ------------------------------------------------------ | ------------------------ | --------- |
+| 3.1 | **Application Workflow Timeline**         | Show full workflow on each application page            | ⚠️ Enhance audit log     | ❌ New UI |
+| 3.2 | **Comment Threads / Internal Notes**      | Add notes on applications, visible to authorized roles | ❌ New model + endpoints | ❌ New UI |
+| 3.3 | **Application State Machine Enforcement** | Strict transition validation                           | ❌ New service           | N/A       |
 
 ---
 
-## ✅ PHASE 7: Workflow Timeline & Internal Notes
+## Phase 4: PDF Generation Enhancement
 
-### 7.1 Application Workflow Timeline ✅
-
-- [x] **7.1.1** Backend: Enhance audit log to capture step-by-step transitions ✅
-- [x] **7.1.2** Backend: GET `/api/applications/:id/timeline` with durations ✅
-- [x] **7.1.3** Frontend: Visual timeline component (completed/current/pending) ✅
-- [x] **7.1.4** Frontend: Show time taken per step (e.g., "Approved in 2d 3h") ✅
-- [x] **7.1.5** Frontend: Clear status indicators (green check, yellow pending, red rejected) ✅
-
-### 7.2 Comment Threads / Internal Notes ✅
-
-- [x] **7.2.1** Backend: Comment model ✅
-- [x] **7.2.2** Backend: GET/POST `/api/applications/:id/comments` ✅
-- [x] **7.2.3** Backend: DELETE `/api/comments/:id` ✅
-- [x] **7.2.4** Frontend: Comment thread UI ✅
-- [x] **7.2.5** Frontend: Multi-line input for comments ✅
-- [x] **7.2.6** Frontend: Author name, role, timestamp for each comment ✅
-
-### 7.3 State Machine Enforcement ✅
-
-- [x] **7.3.1** Backend: WorkflowConfig with allowed transitions map ✅
-- [x] **7.3.2** Backend: WorkflowEngine — `canTransition(from, to, userRole)` ✅
-- [x] **7.3.3** Backend: `transition(applicationId, from, to, userId, comment)` ✅
-- [x] **7.3.4** Backend: Integrate workflow engine into status-change endpoint ✅
+| #   | Task                                   | Details                                                                   | Backend                 | Frontend           |
+| --- | -------------------------------------- | ------------------------------------------------------------------------- | ----------------------- | ------------------ |
+| 4.1 | **PDF — GNFC Logo + Letterhead Space** | All PDFs to include GNFC logo and leave top space for physical letterhead | ❌ Refactor PDF service | N/A                |
+| 4.2 | **PDF — Match SOP Document Forms**     | Reference VTMS SOP PDF forms; include ALL fields from scanned forms       | ❌ Refactor PDF service | N/A                |
+| 4.3 | **No Due PDF Generator**               | Add `generateNoDuePdf` to pdfService                                      | ❌ New                  | ❌ Download button |
 
 ---
 
-## ✅ PHASE 8: PDF Generation Enhancement
+## Phase 5: Email System Enhancement
 
-### 8.1 GNFC Logo + Letterhead Space
-
-- [x] **8.1.1** Add GNFC logo image to PDF generation (SVG embed attempt) ✅
-- [x] **8.1.2** Add top margin space (40mm / 115pt) for physical letterhead printing ✅
-- [x] **8.1.3** Restructure PDF header: Company name, address, CIN, GST, phone, email ✅
-
-### 8.2 Match SOP Document Forms
-
-- [ ] **8.2.1** Reference VTMS SOP PDF scanned forms — extract all fields
-- [ ] **8.2.2** Update permission letter PDF template with ALL form fields
-- [ ] **8.2.3** Update biodata PDF template with ALL form fields
-- [ ] **8.2.4** Update gate pass PDF template with exact front/back layout
-- [ ] **8.2.5** Update posting letter PDF template with ALL form fields
-- [ ] **8.2.6** Update certificate PDF template with ALL form fields
-- [ ] **8.2.7** Create no-due PDF template with ALL form fields
-
-### 8.3 No Due PDF Generator ✅
-
-- [x] **8.3.1** Backend: `generateNoDuePdf` already exists in pdfService.ts ✅
-- [x] **8.3.2** Backend: POST `/api/no-dues/:id/generate` endpoint ✅
-- [x] **8.3.3** Frontend: Download/print button on No Due Clearance page ✅
+| #   | Task                                    | Details                                             | Backend                  | Frontend        |
+| --- | --------------------------------------- | --------------------------------------------------- | ------------------------ | --------------- |
+| 5.1 | **Email — Dev Mode routing**            | All emails during development go to tjdesai@gnfc.in | ⚠️ Config change         | N/A             |
+| 5.2 | **Email — Reminder Emails**             | Automated reminders for pending actions             | ❌ New cron/service      | N/A             |
+| 5.3 | **Email — Admin Notification Settings** | Global on/off toggle; granular per-type control     | ❌ New model + endpoints | ❌ New admin UI |
 
 ---
 
-## ✅ PHASE 9: Email System Enhancement
+## Phase 6: Testing Infrastructure
 
-### 9.1 Dev Mode Email Routing ✅
-
-- [x] **9.1.1** `DEV_EMAIL` env var ✅
-- [x] **9.1.2** `EMAIL_REDIRECT_MODE` env var ✅
-- [x] **9.1.3** Redirect all emails to DEV_EMAIL when redirect mode is on ✅
-- [x] **9.1.4** Log prefix "[DEV MODE]" in redirected emails ✅
-
-### 9.2 Reminder Emails ✅
-
-- [x] **9.2.1** Backend: Reminder engine service ✅
-- [x] **9.2.2** Backend: Reminder types (PENDING_APPROVAL, etc.) ✅
-- [x] **9.2.3** Backend: Cron job for daily reminders (twice daily at 8AM & 2PM) ✅
-- [x] **9.2.4** Backend: Inline HTML email templates ✅
-
-### 9.3 Admin Email Notification Settings ✅
-
-- [x] **9.3.1** Backend: EmailConfig model ✅
-- [x] **9.3.2** Backend: CRUD endpoints for email config (GET + PATCH) ✅
-- [x] **9.3.3** Backend: Check config before sending (per-type + GLOBAL toggle) ✅
-- [x] **9.3.4** Frontend: EmailNotificationSettings admin page ✅
-- [x] **9.3.5** Frontend: Sidebar link + route ✅
+| #   | Task                          | Details                                                                                             | Backend                   | Frontend |
+| --- | ----------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------- | -------- |
+| 6.1 | **Backend Test Suite**        | Unit tests for numbering.service, validation.service, pdf.service; integration tests for API routes | ❌ New (currently 1 test) | N/A      |
+| 6.2 | **Frontend Test Suite**       | Component tests, form tests, API mock tests                                                         | N/A                       | ❌ New   |
+| 6.3 | **Error Monitoring for Jobs** | Comprehensive logging for cron jobs and failed operations                                           | ❌ New                    | N/A      |
 
 ---
 
-## ✅ PHASE 10: Testing Infrastructure (Enhanced)
+## Phase 7: UI/UX Polish
 
-### 10.1 Backend Test Suite (now 129 tests across 12 suites)
-
-- [x] **10.1.1** Jest + ts-jest setup (existing, verified) ✅
-- [x] **10.1.2** Unit tests: numbering.service.ts — 16 tests (FY edge cases) ✅
-- [x] **10.1.3** Unit tests: validation.service.ts — 13 tests (existing) ✅
-- [x] **10.1.4** Unit tests: pdf.service.ts — 4 tests (exports + signatures) ✅
-- [x] **10.1.5** Integration tests: auth routes — 11 tests ✅
-- [x] **10.1.6** Integration tests: application CRUD — 11 tests ✅
-- [x] **10.1.7** Integration tests: master data CRUD — 12 tests ✅
-- [x] **10.1.8** Integration tests: report endpoints — 25 tests ✅
-- [x] **10.1.9** Integration tests: email utility — 4 tests (mocked) ✅
-- [x] **10.1.10** Integration tests: workflow transitions — 11 tests ✅
-- [x] **10.1.11** Test database setup — helpers/setup.ts with token generation ✅
-- [x] **10.1.12** Unit tests: logger — 6 tests ✅
-- [x] **10.1.13** Enhanced existing tests (numbering, etc.) ✅
-
-### 10.2 Frontend Test Suite
-
-- [x] **10.2.1** Jest config (existing) ✅
-- [x] **10.2.2-8** Existing 40 tests for validation, helpers (passing) ✅
-
-### 10.3 Error Monitoring & Logging
-
-- [x] **10.3.1** Structured logging — `api/src/utils/logger.ts` with levels, contexts, child loggers, file output ✅
-- [x] **10.3.2** Log cron job executions — logger.cron available for integration ✅
-- [x] **10.3.3** Log queue job processing — logger.queue available for integration ✅
-- [x] **10.3.4** Log email send attempts — logger.email available for integration ✅
-- [ ] **10.3.5** Log viewer dashboard (frontend page) — deferred
+| #   | Task                               | Details                                                              | Backend | Frontend       |
+| --- | ---------------------------------- | -------------------------------------------------------------------- | ------- | -------------- |
+| 7.1 | **Mobile Responsiveness**          | Responsive design for all pages; sidebar collapses on mobile         | N/A     | ❌ Refactor    |
+| 7.2 | **Dark/Light Mode Toggle**         | Theme switcher with localStorage persistence                         | N/A     | ❌ New feature |
+| 7.3 | **Fix Login Page GNFC Logo**       | Logo not displaying — check path                                     | N/A     | ✅ Fix needed  |
+| 7.4 | **Replace all popups with Modals** | Custom modal components for confirmations, notifications, data entry | N/A     | ❌ Refactor    |
 
 ---
 
-## 🔧 Active Bug Fixes (COMPLETED)
+## Phase 8: VTMS Improvements
 
-- [x] Fix SAMVAD sync duplicate email handling and unique email fallback in `api/src/jobs/samvadSync.ts` ✅
-- [x] Strengthen SAMVAD employee name validation to skip invalid phone-like or placeholder names in `api/src/jobs/samvadSync.ts` ✅
-- [x] Fix `MyTasks` greeting to show employee name when available in `client/src/pages/MyTasks.tsx` ✅
-- [x] Improve select dropdown styling and native arrow hiding in `client/src/index.css` ✅
-- [x] Ensure `EmployeeSearch` dropdown renders correctly and overlays on top in `client/src/components/EmployeeSearch.tsx` ✅
-- [x] Fix TypeScript strict compilation errors (unused imports/variables) across client pages ✅
-- [x] Add clickable App No cells in Reports page to navigate to application details in `client/src/pages/Reports.tsx` ✅
-
----
-
-## ⏳ Pending Tasks (Next Phase)
-
-### Testing & Validation
-
-- [ ] **T1.1** Run full backend test suite (`npm test` in api/) and verify all 129 tests pass ⏳
-- [ ] **T1.2** Run SAMVAD sync unit/integration tests specifically to validate email conflict resolution ⏳
-- [ ] **T1.3** Manual test SAMVAD sync with test data containing duplicate emails ⏳
-- [ ] **T1.4** Start dev servers: `npm run dev` in both api/ and client/ directories ⏳
-- [ ] **T1.5** Verify MyTasks page displays employee name in greeting (not username) ⏳
-- [ ] **T1.6** Test select dropdowns render without duplicate native arrows across browsers ⏳
-- [ ] **T1.7** Test EmployeeSearch dropdown appears above all page content (z-index verified) ⏳
-- [ ] **T1.8** Test Reports page App No cells are clickable and navigate to application details ⏳
-
-### Optional Deferred Items (Lower Priority)
-
-- [ ] **O1.1** Match SOP document forms — extract all fields from VTMS SOP PDF scanned forms (Phase 8.2)
-- [ ] **O1.2** Update all PDF templates with complete form field mappings (Phase 8.2)
-- [ ] **O1.3** Frontend: Student portal login page (Phase 6.1.5) — deferred (track-by-email replaces need)
-- [ ] **O1.4** Frontend: Log viewer dashboard page (Phase 10.3.5) — deferred
+| #   | Task                         | Details                                                                          | Backend          | Frontend   |
+| --- | ---------------------------- | -------------------------------------------------------------------------------- | ---------------- | ---------- |
+| 8.1 | **Email — Dev Mode**         | Add toggle in admin to redirect all emails to tjdesai@gnfc.in during development | ⚠️ Config change | N/A        |
+| 8.2 | **Department Master**        | Fix to seed from user list departments                                           | ⚠️ Enhance       | N/A        |
+| 8.3 | **SAMVAD Sync Improvements** | Better logging, clear logs button, live log following, progress bar improvements | ⚠️ Enhance       | ⚠️ Enhance |
+| 8.4 | **Employee Status**          | Check from SAMVAD, only create active employees, store contact number            | ⚠️ Enhance       | N/A        |
+| 8.5 | **Dashboard**                | Show users and active employees count                                            | ⚠️ Enhance       | ⚠️ Enhance |
+| 8.6 | **User Page**                | Search by roles                                                                  | ⚠️ Enhance       | ⚠️ Enhance |
+| 8.7 | **Role Mapping**             | Add live log trail                                                               | ⚠️ Enhance       | ⚠️ Enhance |
+| 8.8 | **Reports**                  | Only show colleges with applications, clickable application badges               | ⚠️ Enhance       | ⚠️ Enhance |
 
 ---
 
-## ✅ PHASE 11: UI/UX Polish
+## Completed Tasks (Recent Fixes)
 
-### 11.1 Mobile Responsiveness ✅
-
-- [x] **11.1.1** Sidebar: Auto-collapse on mobile (64px + icon-only) ✅
-- [x] **11.1.2** Tables: Horizontal scroll on mobile (overflow-x: auto) ✅
-- [x] **11.1.3** Forms: Full-width inputs on mobile (flex-direction: column) ✅
-- [x] **11.1.4** Dashboard: Single column layout on mobile (1fr grid) ✅
-- [x] **11.1.5** Stats cards: Full width on mobile ✅
-- [x] **11.1.6** Touch-friendly controls (min 44px tap targets, 16px font) ✅
-- [x] **11.1.7** Test on multiple viewport sizes (1024, 768, 480px breakpoints) ✅
-
-### 11.2 Replace Browser Popups with Modals ✅
-
-- [x] **11.2.1** Reusable Modal component — created `client/src/components/Modal.tsx` ✅
-- [x] **11.2.2** Replace `window.confirm()` with Modal — MastersManagement + NoDueClearance ✅
-- [x] **11.2.3** Replace `window.alert()` with Toast — NoDueClearance (alerts→addToast) ✅
-- [x] **11.2.4** Replace `window.prompt()` with Modal input — NoDueClearance + DocumentVerification ✅
-- [x] **11.2.5** Review all pages for remaining popups — zero remaining across codebase ✅
-
-### 11.3 Dark/Light Mode Toggle ✅
-
-- [x] **11.3.1** ThemeContext with mode state ✅
-- [x] **11.3.2** Persist in localStorage ✅
-- [x] **11.3.3** CSS variables for both themes ✅
-- [x] **11.3.4** Toggle button in sidebar ✅
-- [x] **11.3.5** Apply on initial load ✅
-
-### 11.4 Fix Login Page GNFC Logo ✅
-
-- [x] **11.4.1** Check logo file path ✅
-- [x] **11.4.2** Correct image import path ✅
-- [x] **11.4.3** Fallback/alt text ✅
+- ✅ SAMVAD sync robust email conflict resolution
+- ✅ Invalid employee name filtering
+- ✅ Employee name display in task greeting
+- ✅ Select dropdown styling fixes
+- ✅ Employee search dropdown overlay fixes
+- ✅ TypeScript strict mode fixes (20+ errors)
+- ✅ Report page clickable app number cells
+- ✅ Schema mismatch fixes in application.routes.ts
+- ✅ Site visit counter inflation fix
+- ✅ Workflow timeline shows all steps
 
 ---
 
-## ✅ PHASE 12: Additional Admin Features
+## Implementation Order
 
-- [x] **12.1** Global email toggle (EmailConfig GLOBAL type) ✅
-- [x] **12.2** Per-type notification toggle (EmailConfig per-type) ✅
-- [x] **12.3** Per-employee email suppression (receive_emails field + check in sendEmail) ✅
-- [x] **12.4** Admin Notification Settings page (EmailNotificationSettings) ✅
-- [x] **12.5** Account deletion confirmation modal (Modal + delete handler in AdminUsers) ✅
-- [x] **12.6** User activity log in admin panel (Activity button + audit log Modal in AdminUsers) ✅
+```
+Phase 0: Foundation & Fixes (Week 1)
+├── 0.1 Update plan.md + README.md ✅
+├── 0.2 Fix GNFC logo on login page
+├── 0.3 Dark/Light mode toggle
+├── 0.4 Verify .env vars documented
+└── 0.5 Seed realistic test data
 
----
+Phase 1: RBAC & Access Control (Week 1-2)
+├── 1.1 Recommending Employee scope filter
+├── 1.2 Plant/Dept HOD scope filter
+├── 1.3 User Account Management
+└── 1.4 Designation→Role Mapping
 
-## Summary Count
+Phase 2: Online Portal & Validation (Week 2)
+├── 2.1 Online Application Portal
+├── 2.2 Client-side validation
+└── 2.3 Replace browser popups with modals
 
-| Phase     | Title                        | Done    | Total   | %           |
-| --------- | ---------------------------- | ------- | ------- | ----------- |
-| 0         | Documentation & Foundation   | 5       | 5       | **100%** ✅ |
-| 1         | Backend Transaction Flows    | 6       | 6       | **100%**    |
-| 2         | Frontend Transaction Pages   | 6       | 6       | **100%**    |
-| 3         | Reports Module               | 4       | 4       | **100%**    |
-| 4         | Cross-Cutting Business Rules | 5       | 5       | **100%**    |
-| 5         | RBAC & Access Control        | 16      | 16      | **100%** ✅ |
-| 6         | Online Portal & Validation   | 9       | 11      | 82%         |
-| 7         | Workflow Timeline & Notes    | **13**  | **13**  | **100%** ✅ |
-| 8         | PDF Generation Enhancement   | 7       | 12      | 58%         |
-| 9         | Email System                 | 12      | 12      | **100%** ✅ |
-| 10        | Testing                      | **22**  | **25**  | **88%** ✅  |
-| 11        | UI/UX Polish                 | 12      | 12      | **100%** ✅ |
-| 12        | Additional Admin Features    | 6       | 6       | **100%** ✅ |
-| **Total** |                              | **123** | **131** | **94%**     |
+Phase 3: Workflow & Notes (Week 2-3)
+├── 3.1 Application Workflow Timeline
+├── 3.2 Comment Threads / Internal Notes
+└── 3.3 State Machine Enforcement
+
+Phase 4: PDF Enhancement (Week 3)
+├── 4.1 GNFC Logo + letterhead space
+├── 4.2 Match SOP document forms
+└── 4.3 No Due PDF Generator
+
+Phase 5: Email System (Week 3-4)
+├── 5.1 Dev mode email routing
+├── 5.2 Reminder email generation
+└── 5.3 Admin email notification settings
+
+Phase 6: Testing (Week 4)
+├── 6.1 Backend test suite
+├── 6.2 Frontend test suite
+└── 6.3 Error monitoring for jobs
+
+Phase 7: UI/UX Polish (Week 4-5)
+├── 7.1 Mobile responsiveness
+├── 7.2 Dark/Light Mode
+├── 7.3 Fix login GNFC logo
+└── 7.4 Replace all popups with modals
+
+Phase 8: VTMS Improvements (Week 5-6)
+├── 8.1 Email Dev Mode
+├── 8.2 Department Master
+├── 8.3 SAMVAD Sync Improvements
+├── 8.4 Employee Status
+├── 8.5 Dashboard
+├── 8.6 User Page
+├── 8.7 Role Mapping
+└── 8.8 Reports
+```
